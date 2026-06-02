@@ -1,0 +1,18 @@
+# Build output
+**/bin/
+**/obj/
+_build_out/
+
+# IDE / local settings
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Runtime / local config
+imgui.ini
+
+# OS
+Thumbs.db
+Desktop.ini
