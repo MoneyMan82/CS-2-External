@@ -51,6 +51,25 @@ namespace External_Aimbot
             return (float)Math.Sqrt(deltaPitch * deltaPitch + deltaYaw * deltaYaw);
         }
 
+        public static float GetFovCircleRadius(
+            float aimFovDegrees,
+            float screenWidth,
+            float screenHeight,
+            float gameFovDegrees = 90f)
+        {
+            if (aimFovDegrees <= 0f || screenHeight <= 0f || screenWidth <= 0f)
+                return 0f;
+
+            aimFovDegrees = Math.Clamp(aimFovDegrees, 0.1f, 89f);
+            gameFovDegrees = Math.Clamp(gameFovDegrees, 60f, 140f);
+
+            float aimRad = aimFovDegrees * MathF.PI / 180f;
+            float aspect = screenWidth / screenHeight;
+            float verticalGameFovRad = 2f * MathF.Atan(MathF.Tan(gameFovDegrees * MathF.PI / 360f) / aspect);
+
+            return screenHeight * 0.5f * MathF.Tan(aimRad) / MathF.Tan(verticalGameFovRad * 0.5f);
+        }
+
         public static Vector2 SmoothAngles(Vector2 current, Vector2 target, float smoothness)
         {
             if (smoothness <= 1f)

@@ -27,7 +27,8 @@ namespace External_Aimbot
         public bool aimOnTeam = false;
         public Hotkey aimbotHotkey = Hotkey.Mouse4;
         public AimbotGameMode gameMode = AimbotGameMode.Casual;
-        public float fov = 90f;
+        public float fov = 20f;
+        public bool showFovCircle = true;
         public float smoothness = 1f;
         public float recoilStrength = 1f;
         public bool HasPredictionPoint;
@@ -245,7 +246,9 @@ namespace External_Aimbot
             if (gameMode == AimbotGameMode.Casual)
                 ImGui.Checkbox("aim on teammates, aswell", ref aimOnTeam);
 
-            ImGui.SliderFloat("FOV", ref fov, 1f, 180f);
+            ImGui.SliderFloat("Aim FOV", ref fov, 1f, 90f);
+            ImGui.Checkbox("show FOV circle", ref showFovCircle);
+            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Circle = lock range. Lower FOV = tighter aim.");
             ImGui.SliderFloat("Smoothness", ref smoothness, 1f, 20f);
             HotkeyInput.DrawSelector("Aim hotkey", ref aimbotHotkey);
             ImGui.Text($"Hold {HotkeyInput.Label(aimbotHotkey)} to aim");
@@ -520,21 +523,24 @@ namespace External_Aimbot
 
         private void DrawFovCircle()
         {
-            if (!aimbot)
+            if (!aimbot || !showFovCircle)
                 return;
 
             var drawList = ImGui.GetBackgroundDrawList();
             var displaySize = ImGui.GetIO().DisplaySize;
             var center = new Vector2(displaySize.X / 2f, displaySize.Y / 2f);
-            float radius = displaySize.Y / 2f * (fov / 90f);
 
-            drawList.AddCircle(
-                center,
-                radius,
-                ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 1f)),
-                64,
-                1.5f
-            );
+            float gameFov = miscFovChanger ? miscFovValue : 90f;
+            float radius = Calculate.GetFovCircleRadius(fov, displaySize.X, displaySize.Y, gameFov);
+            if (radius <= 0f)
+                return;
+
+            uint circleColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.2f, 1f, 0.35f, 0.85f));
+            uint outlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, 0.7f));
+
+            drawList.AddCircle(center, radius + 1f, outlineColor, 64, 2.5f);
+            drawList.AddCircle(center, radius, circleColor, 64, 1.5f);
+            drawList.AddCircleFilled(center, 2.5f, circleColor);
         }
 
         private void DrawDisplayModeHelp()
