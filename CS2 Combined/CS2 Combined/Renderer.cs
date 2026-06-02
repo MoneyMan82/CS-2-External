@@ -64,6 +64,9 @@ namespace External_Aimbot
         public bool antiFlashEnabled = false;
         public AntiFlashDebug AntiFlashState;
 
+        public bool miscNoRecoilEnabled = false;
+        public NoRecoilDebug NoRecoilState;
+
         public bool miscRadarReveal = false;
         public bool miscOverlayRadar = false;
         public bool miscRadarShowTeam = false;
@@ -349,6 +352,11 @@ namespace External_Aimbot
                 ImGui.SliderInt("Game FOV", ref miscFovValue, 60, 140);
 
             ImGui.Spacing();
+            ImGui.Text("Combat");
+            ImGui.Checkbox("no recoil", ref miscNoRecoilEnabled);
+            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Removes visual recoil while shooting (no aimbot needed)");
+
+            ImGui.Spacing();
             ImGui.Text("Radar");
             ImGui.Checkbox("radar reveal", ref miscRadarReveal);
             ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Shows enemies on the in-game minimap");
@@ -371,6 +379,12 @@ namespace External_Aimbot
 
             var flash = AntiFlashState;
             ImGui.Text($"Flash alpha: {flash.FlashAlpha:F0}  |  {flash.Status}");
+
+            if (miscNoRecoilEnabled)
+            {
+                var recoil = NoRecoilState;
+                ImGui.Text($"No recoil: {recoil.Status}");
+            }
 
             var misc = MiscState;
             if (miscBombTimer)
@@ -412,6 +426,8 @@ namespace External_Aimbot
         }
 
         public void SetAntiFlashDebug(AntiFlashDebug debug) => AntiFlashState = debug;
+
+        public void SetNoRecoilDebug(NoRecoilDebug debug) => NoRecoilState = debug;
 
         public void SetMiscDebug(MiscDebug debug) => MiscState = debug;
 

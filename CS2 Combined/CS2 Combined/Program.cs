@@ -70,6 +70,8 @@ try
                 renderer.antiFlashEnabled,
                 out AntiFlashDebug idleAntiFlashDebug);
             renderer.SetAntiFlashDebug(idleAntiFlashDebug);
+            NoRecoil.Process(mem, IntPtr.Zero, renderer.miscNoRecoilEnabled, default, Vector2.Zero, out NoRecoilDebug idleNoRecoilDebug);
+            renderer.SetNoRecoilDebug(idleNoRecoilDebug);
             renderer.SetMiscDebug(default);
             renderer.SetRadarBlips([]);
             renderer.SetSkinChangerDebug(default);
@@ -288,6 +290,15 @@ try
             renderer.antiFlashEnabled,
             out AntiFlashDebug antiFlashDebug);
         renderer.SetAntiFlashDebug(antiFlashDebug);
+
+        NoRecoil.Process(
+            mem,
+            localPlayer.pawnAddress,
+            renderer.miscNoRecoilEnabled,
+            weapon,
+            viewAngles,
+            out NoRecoilDebug noRecoilDebug);
+        renderer.SetNoRecoilDebug(noRecoilDebug);
 
         IntPtr localController = mem.ReadPtr(mem.Client, Offsets.dwLocalPlayerController);
         MiscFeatures.Process(
