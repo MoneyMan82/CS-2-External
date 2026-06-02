@@ -57,11 +57,27 @@ namespace External_Aimbot
 
         public bool bhopEnabled = false;
         public bool bhopHoldSpace = true;
+        public bool bhopSubtick = false;
         public BhopDebug BhopState;
+
+        public bool antiFlashEnabled = false;
+        public AntiFlashDebug AntiFlashState;
+
+        public bool miscRadarReveal = false;
+        public bool miscOverlayRadar = false;
+        public bool miscRadarShowTeam = false;
+        public float miscRadarSize = 120f;
+        public float miscRadarRange = 2500f;
+        public bool miscBombTimer = false;
+        public bool miscSpectatorList = false;
+        public bool miscFovChanger = false;
+        public int miscFovValue = 90;
+        public MiscDebug MiscState;
 
         private readonly object _overlayLock = new();
         private List<OverlayLine> _overlayLines = [];
         private List<EspPlayerData> _espPlayers = [];
+        private List<RadarBlip> _radarBlips = [];
 
         private Rect? lastGameRect;
         private IntPtr cachedGameWindow;
@@ -114,6 +130,12 @@ namespace External_Aimbot
                     ImGui.EndTabItem();
                 }
 
+                if (ImGui.BeginTabItem("Misc"))
+                {
+                    DrawMiscTab();
+                    ImGui.EndTabItem();
+                }
+
                 ImGui.EndTabBar();
             }
 
@@ -125,6 +147,7 @@ namespace External_Aimbot
             DrawTargetLines();
             DrawRecoilPrediction();
             DrawEsp();
+            DrawOverlayRadar();
         }
 
         private void DrawEspTab()
@@ -271,9 +294,13 @@ namespace External_Aimbot
         {
             ImGui.Checkbox("auto bhop", ref bhopEnabled);
             ImGui.Checkbox("hold Space to bhop", ref bhopHoldSpace);
+            ImGui.Checkbox("subtick bhop (2x faster)", ref bhopSubtick);
 
             if (!bhopHoldSpace)
                 ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1f), "Jumps automatically when enabled");
+
+            if (bhopSubtick)
+                ImGui.TextColored(new Vector4(0.4f, 0.85f, 1f, 1f), "Uses subtick jump pulses at 2x update rate");
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -285,7 +312,7 @@ namespace External_Aimbot
             ImGui.Text($"Flags: 0x{debug.Flags:X}");
 
             ImGui.TextColored(
-                debug.Status is "Jumping" or "In air"
+                debug.Status is "Jumping" or "Jumping (subtick)" or "In air"
                     ? new Vector4(0.2f, 1f, 0.2f, 1f)
                     : new Vector4(0.8f, 0.8f, 0.8f, 1f),
                 debug.Status
@@ -293,6 +320,103 @@ namespace External_Aimbot
         }
 
         public void SetBhopDebug(BhopDebug debug) => BhopState = debug;
+
+        private void DrawMiscTab()
+        {
+            ImGui.Text("Visual");
+            ImGui.Checkbox("anti flash", ref antiFlashEnabled);
+            ImGui.Checkbox("FOV changer", ref miscFovChanger);
+            if (miscFovChanger)
+                ImGui.SliderInt("Game FOV", ref miscFovValue, 60, 140);
+
+            ImGui.Spacing();
+            ImGui.Text("Radar");
+            ImGui.Checkbox("radar reveal", ref miscRadarReveal);
+            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Shows enemies on the in-game minimap");
+            ImGui.Checkbox("overlay radar", ref miscOverlayRadar);
+            if (miscOverlayRadar)
+            {
+                ImGui.Checkbox("show teammates##radar", ref miscRadarShowTeam);
+                ImGui.SliderFloat("radar size", ref miscRadarSize, 80f, 220f);
+                ImGui.SliderFloat("radar range", ref miscRadarRange, 1000f, 5000f);
+            }
+
+            ImGui.Spacing();
+            ImGui.Text("Info");
+            ImGui.Checkbox("bomb timer", ref miscBombTimer);
+            ImGui.Checkbox("spectator list", ref miscSpectatorList);
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Text("Status");
+
+            var flash = AntiFlashState;
+            ImGui.Text($"Flash alpha: {flash.FlashAlpha:F0}  |  {flash.Status}");
+
+            var misc = MiscState;
+            if (miscBombTimer)
+            {
+                if (misc.BombPlanted)
+                {
+                    ImGui.TextColored(new Vector4(1f, 0.45f, 0.2f, 1f),
+                        $"Bomb site {misc.BombSite}: {misc.BombTimeLeft:0.0}s");
+                    if (misc.BombBeingDefused)
+                        ImGui.TextColored(new Vector4(0.2f, 1f, 0.35f, 1f),
+                            $"Defusing: {misc.DefuseTimeLeft:0.0}s");
+                }
+                else
+                {
+                    ImGui.Text("Bomb: not planted");
+                }
+            }
+
+            if (miscRadarReveal)
+                ImGui.Text($"Radar reveal: {misc.RadarRevealedCount} spotted this tick");
+
+            if (miscFovChanger && misc.AppliedFov > 0)
+                ImGui.Text($"FOV: {misc.AppliedFov}");
+
+            if (miscSpectatorList)
+            {
+                if (misc.SpectatorCount > 0 && misc.Spectators != null)
+                {
+                    ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1f),
+                        $"Spectators ({misc.SpectatorCount}):");
+                    foreach (string name in misc.Spectators)
+                        ImGui.BulletText(name);
+                }
+                else
+                {
+                    ImGui.Text("Spectators: none");
+                }
+            }
+        }
+
+        public void SetAntiFlashDebug(AntiFlashDebug debug) => AntiFlashState = debug;
+
+        public void SetMiscDebug(MiscDebug debug) => MiscState = debug;
+
+        public void SetRadarBlips(IReadOnlyList<RadarBlip> blips)
+        {
+            lock (_overlayLock)
+            {
+                _radarBlips = blips.ToList();
+            }
+        }
+
+        private void DrawOverlayRadar()
+        {
+            if (!miscOverlayRadar)
+                return;
+
+            List<RadarBlip> blips;
+            lock (_overlayLock)
+            {
+                blips = _radarBlips;
+            }
+
+            RadarOverlay.Draw(blips, miscRadarSize, 16f);
+        }
 
         private void DrawMapRaytracingStatus()
         {

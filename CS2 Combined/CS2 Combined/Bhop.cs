@@ -19,6 +19,7 @@ namespace External_Aimbot
             IntPtr localPawn,
             bool enabled,
             bool holdSpace,
+            bool subtick,
             out BhopDebug debug)
         {
             bool spaceHeld = InputState.IsSpaceHeld();
@@ -52,16 +53,36 @@ namespace External_Aimbot
 
             int flags = mem.ReadInt(localPawn, Offsets.m_fFlags);
             bool onGround = (flags & FlOnGround) != 0;
-            int jumpValue = onGround ? JumpPress : JumpRelease;
-            mem.WriteInt(mem.Client, Offsets.dwJump, jumpValue);
+
+            if (onGround)
+            {
+                if (subtick)
+                    WriteSubtickJump(mem);
+                else
+                    mem.WriteInt(mem.Client, Offsets.dwJump, JumpPress);
+            }
+            else
+            {
+                mem.WriteInt(mem.Client, Offsets.dwJump, JumpRelease);
+            }
 
             debug = new BhopDebug
             {
                 SpaceHeld = spaceHeld,
                 OnGround = onGround,
                 Flags = flags,
-                Status = onGround ? "Jumping" : "In air",
+                Status = onGround
+                    ? (subtick ? "Jumping (subtick)" : "Jumping")
+                    : "In air",
             };
+        }
+
+        private static void WriteSubtickJump(GameMemory mem)
+        {
+            // Press-release-press within one update mimics subtick jump timing (+jump; -jump; +jump).
+            mem.WriteInt(mem.Client, Offsets.dwJump, JumpPress);
+            mem.WriteInt(mem.Client, Offsets.dwJump, JumpRelease);
+            mem.WriteInt(mem.Client, Offsets.dwJump, JumpPress);
         }
 
         private static void ReleaseJump(GameMemory mem)

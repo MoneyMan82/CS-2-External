@@ -61,8 +61,17 @@ try
                 IntPtr.Zero,
                 renderer.bhopEnabled,
                 renderer.bhopHoldSpace,
+                renderer.bhopSubtick,
                 out BhopDebug idleBhopDebug);
             renderer.SetBhopDebug(idleBhopDebug);
+            AntiFlash.Process(
+                mem,
+                IntPtr.Zero,
+                renderer.antiFlashEnabled,
+                out AntiFlashDebug idleAntiFlashDebug);
+            renderer.SetAntiFlashDebug(idleAntiFlashDebug);
+            renderer.SetMiscDebug(default);
+            renderer.SetRadarBlips([]);
             Thread.Sleep(250);
             continue;
         }
@@ -258,10 +267,76 @@ try
             localPlayer.pawnAddress,
             renderer.bhopEnabled,
             renderer.bhopHoldSpace,
+            renderer.bhopSubtick,
             out BhopDebug bhopDebug);
+        if (renderer.bhopEnabled && renderer.bhopSubtick)
+        {
+            Bhop.Process(
+                mem,
+                localPlayer.pawnAddress,
+                renderer.bhopEnabled,
+                renderer.bhopHoldSpace,
+                renderer.bhopSubtick,
+                out bhopDebug);
+        }
         renderer.SetBhopDebug(bhopDebug);
 
-        Thread.Sleep(5);
+        AntiFlash.Process(
+            mem,
+            localPlayer.pawnAddress,
+            renderer.antiFlashEnabled,
+            out AntiFlashDebug antiFlashDebug);
+        renderer.SetAntiFlashDebug(antiFlashDebug);
+
+        IntPtr localController = mem.ReadPtr(mem.Client, Offsets.dwLocalPlayerController);
+        MiscFeatures.Process(
+            mem,
+            entitySystem,
+            localPlayer.pawnAddress,
+            localController,
+            localPlayer,
+            renderer.miscRadarReveal,
+            renderer.miscFovChanger,
+            renderer.miscFovValue,
+            renderer.miscBombTimer,
+            renderer.miscSpectatorList,
+            out MiscDebug miscDebug);
+        renderer.SetMiscDebug(miscDebug);
+
+        if (renderer.miscOverlayRadar)
+        {
+            List<Entity> radarEntities = EntityScanner.Scan(
+                mem,
+                localPlayer,
+                AimbotGameMode.Casual,
+                renderer.miscRadarShowTeam);
+
+            foreach (Entity entity in radarEntities)
+            {
+                entity.isVisible = Visibility.CanSeeTarget(
+                    mem,
+                    entity.pawnAddress,
+                    localPlayerIndex,
+                    playerView,
+                    entity.GetAimPosition(),
+                    entity.GetChestPosition(),
+                    viewAngles,
+                    renderer.mapRaytracing);
+            }
+
+            renderer.SetRadarBlips(
+                RadarOverlay.BuildBlips(
+                    localPlayer,
+                    radarEntities,
+                    viewAnglesVec.Y,
+                    renderer.miscRadarRange));
+        }
+        else
+        {
+            renderer.SetRadarBlips([]);
+        }
+
+        Thread.Sleep(renderer.bhopEnabled && renderer.bhopSubtick ? 2 : 5);
     }
 }
 catch (Exception ex)

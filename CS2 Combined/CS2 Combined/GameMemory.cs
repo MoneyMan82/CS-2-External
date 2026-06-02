@@ -49,6 +49,14 @@ namespace External_Aimbot
             return 0;
         }
 
+        public float ReadFloat(IntPtr baseAddress, int offset)
+        {
+            if (ReadProcessMemory(_handle, baseAddress + offset, _intBuffer, 4, out int read) && read == 4)
+                return BitConverter.ToSingle(_intBuffer, 0);
+
+            return 0f;
+        }
+
         public byte ReadByte(IntPtr address)
         {
             if (ReadProcessMemory(_handle, address, _boolBuffer, 1, out int read) && read == 1)
@@ -131,6 +139,12 @@ namespace External_Aimbot
         }
 
         public void WriteInt(IntPtr baseAddress, int offset, int value)
+        {
+            Buffer.BlockCopy(BitConverter.GetBytes(value), 0, _intBuffer, 0, 4);
+            WriteProcessMemory(_handle, baseAddress + offset, _intBuffer, 4, out _);
+        }
+
+        public void WriteFloat(IntPtr baseAddress, int offset, float value)
         {
             Buffer.BlockCopy(BitConverter.GetBytes(value), 0, _intBuffer, 0, 4);
             WriteProcessMemory(_handle, baseAddress + offset, _intBuffer, 4, out _);

@@ -57,5 +57,24 @@
         public static int m_iszPlayerName = 0x6F4;
         public static int m_ArmorValue = 0x1C7C;
         public static int m_fFlags = 0x3F8;
+
+        public static int m_flFlashBangTime = 0x13EC;
+        public static int m_flFlashMaxAlpha = 0x13FC;
+        public static int m_flFlashOverlayAlpha = 0x13F4;
+        public static int m_flFlashDuration = 0x1400;
+
+        public static int m_pObserverServices = 0x11F8;
+        public static int m_iObserverMode = 0x48;
+        public static int m_hObserverTarget = 0x4C;
+        public static int m_hObserverPawn = 0x910;
+        public static int m_sSanitizedPlayerName = 0x860;
+        public static int m_iFOV = 0x290;
+
+        public static int m_bBombTicking = 0x1160;
+        public static int m_flC4Blow = 0x1190;
+        public static int m_nBombSite = 0x1164;
+        public static int m_bBeingDefused = 0x119C;
+        public static int m_flDefuseCountDown = 0x11B0;
+        public static int m_bHasExploded = 0x1195;
     }
 }

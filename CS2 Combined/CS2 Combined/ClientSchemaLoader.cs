@@ -55,6 +55,22 @@ namespace External_Aimbot
                 SetField(classes, "CBasePlayerController", "m_iszPlayerName", v => Offsets.m_iszPlayerName = v);
                 SetField(classes, "C_CSPlayerPawn", "m_ArmorValue", v => Offsets.m_ArmorValue = v);
                 SetField(classes, "C_BaseEntity", "m_fFlags", v => Offsets.m_fFlags = v);
+                SetField(classes, "C_CSPlayerPawnBase", "m_flFlashBangTime", v => Offsets.m_flFlashBangTime = v);
+                SetField(classes, "C_CSPlayerPawnBase", "m_flFlashMaxAlpha", v => Offsets.m_flFlashMaxAlpha = v);
+                SetField(classes, "C_CSPlayerPawnBase", "m_flFlashOverlayAlpha", v => Offsets.m_flFlashOverlayAlpha = v);
+                SetField(classes, "C_CSPlayerPawnBase", "m_flFlashDuration", v => Offsets.m_flFlashDuration = v);
+                SetField(classes, "C_BasePlayerPawn", "m_pObserverServices", v => Offsets.m_pObserverServices = v);
+                SetField(classes, "CPlayer_ObserverServices", "m_iObserverMode", v => Offsets.m_iObserverMode = v);
+                SetField(classes, "CPlayer_ObserverServices", "m_hObserverTarget", v => Offsets.m_hObserverTarget = v);
+                SetField(classes, "CCSPlayerController", "m_hObserverPawn", v => Offsets.m_hObserverPawn = v);
+                SetField(classes, "CCSPlayerController", "m_sSanitizedPlayerName", v => Offsets.m_sSanitizedPlayerName = v);
+                SetField(classes, "CCSPlayerBase_CameraServices", "m_iFOV", v => Offsets.m_iFOV = v);
+                SetField(classes, "C_PlantedC4", "m_bBombTicking", v => Offsets.m_bBombTicking = v);
+                SetField(classes, "C_PlantedC4", "m_flC4Blow", v => Offsets.m_flC4Blow = v);
+                SetField(classes, "C_PlantedC4", "m_nBombSite", v => Offsets.m_nBombSite = v);
+                SetField(classes, "C_PlantedC4", "m_bBeingDefused", v => Offsets.m_bBeingDefused = v);
+                SetField(classes, "C_PlantedC4", "m_flDefuseCountDown", v => Offsets.m_flDefuseCountDown = v);
+                SetField(classes, "C_PlantedC4", "m_bHasExploded", v => Offsets.m_bHasExploded = v);
 
                 return true;
             }
