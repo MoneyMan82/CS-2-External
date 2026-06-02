@@ -45,6 +45,14 @@
         public static int m_AttributeManager = 0x1180;
         public static int m_Item = 0x50;
         public static int m_iItemDefinitionIndex = 0x1BA;
+        public static int m_iItemIDHigh = 0x1D0;
+        public static int m_iItemIDLow = 0x1D4;
+        public static int m_hMyWeapons = 0x48;
+
+        public static int m_nFallbackPaintKit = 0x1658;
+        public static int m_nFallbackSeed = 0x165C;
+        public static int m_flFallbackWear = 0x1660;
+        public static int m_nFallbackStatTrak = 0x1664;
         public static int m_iRecoilIndex = 0x17DC;
         public static int m_flRecoilIndex = 0x17E0;
         public static int m_fAccuracyPenalty = 0x17D0;

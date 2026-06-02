@@ -44,6 +44,13 @@ namespace External_Aimbot
                 SetField(classes, "C_EconEntity", "m_AttributeManager", v => Offsets.m_AttributeManager = v);
                 SetField(classes, "C_AttributeContainer", "m_Item", v => Offsets.m_Item = v);
                 SetField(classes, "C_EconItemView", "m_iItemDefinitionIndex", v => Offsets.m_iItemDefinitionIndex = v);
+                SetField(classes, "C_EconItemView", "m_iItemIDHigh", v => Offsets.m_iItemIDHigh = v);
+                SetField(classes, "C_EconItemView", "m_iItemIDLow", v => Offsets.m_iItemIDLow = v);
+                SetField(classes, "CPlayer_WeaponServices", "m_hMyWeapons", v => Offsets.m_hMyWeapons = v);
+                SetField(classes, "C_EconEntity", "m_nFallbackPaintKit", v => Offsets.m_nFallbackPaintKit = v);
+                SetField(classes, "C_EconEntity", "m_nFallbackSeed", v => Offsets.m_nFallbackSeed = v);
+                SetField(classes, "C_EconEntity", "m_flFallbackWear", v => Offsets.m_flFallbackWear = v);
+                SetField(classes, "C_EconEntity", "m_nFallbackStatTrak", v => Offsets.m_nFallbackStatTrak = v);
                 SetField(classes, "C_CSWeaponBase", "m_iRecoilIndex", v => Offsets.m_iRecoilIndex = v);
                 SetField(classes, "C_CSWeaponBase", "m_flRecoilIndex", v => Offsets.m_flRecoilIndex = v);
                 SetField(classes, "C_CSWeaponBase", "m_fAccuracyPenalty", v => Offsets.m_fAccuracyPenalty = v);

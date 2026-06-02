@@ -75,6 +75,16 @@ namespace External_Aimbot
         public int miscFovValue = 90;
         public MiscDebug MiscState;
 
+        public bool skinChangerEnabled = false;
+        public int skinEditorWeaponDefIndex = 7;
+        public int skinEditorSkinIndex = 1;
+        public float skinEditorWear = 0.01f;
+        public int skinEditorSeed = 0;
+        public bool skinEditorStatTrak = false;
+        public int skinEditorStatTrakValue = 1337;
+        public SkinChangerDebug SkinChangerState;
+        private readonly Dictionary<int, SkinConfig> _skinConfigs = new();
+
         private readonly object _overlayLock = new();
         private List<OverlayLine> _overlayLines = [];
         private List<EspPlayerData> _espPlayers = [];
@@ -134,6 +144,12 @@ namespace External_Aimbot
                 if (ImGui.BeginTabItem("Misc"))
                 {
                     DrawMiscTab();
+                    ImGui.EndTabItem();
+                }
+
+                if (ImGui.BeginTabItem("Skin Changer"))
+                {
+                    DrawSkinChangerTab();
                     ImGui.EndTabItem();
                 }
 
@@ -398,6 +414,107 @@ namespace External_Aimbot
         public void SetAntiFlashDebug(AntiFlashDebug debug) => AntiFlashState = debug;
 
         public void SetMiscDebug(MiscDebug debug) => MiscState = debug;
+
+        public IReadOnlyDictionary<int, SkinConfig> GetSkinConfigs() => _skinConfigs;
+
+        public void SetSkinChangerDebug(SkinChangerDebug debug) => SkinChangerState = debug;
+
+        private void DrawSkinChangerTab()
+        {
+            ImGui.Checkbox("enable skin changer", ref skinChangerEnabled);
+            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f),
+                "Client-side only. Applies to weapons in your current loadout.");
+
+            ImGui.Spacing();
+            ImGui.Text("Configure weapon skin");
+
+            string weaponLabel = WeaponCatalog.GetName(skinEditorWeaponDefIndex);
+            if (ImGui.BeginCombo("Weapon", weaponLabel))
+            {
+                foreach (int weaponId in SkinCatalog.ConfigurableWeapons)
+                {
+                    string label = WeaponCatalog.GetName(weaponId);
+                    if (ImGui.Selectable(label, skinEditorWeaponDefIndex == weaponId))
+                        skinEditorWeaponDefIndex = weaponId;
+                }
+
+                ImGui.EndCombo();
+            }
+
+            SkinOption[] skins = SkinCatalog.GetSkins(skinEditorWeaponDefIndex);
+            skinEditorSkinIndex = Math.Clamp(skinEditorSkinIndex, 0, Math.Max(0, skins.Length - 1));
+            string skinLabel = skins[skinEditorSkinIndex].Name;
+
+            if (ImGui.BeginCombo("Skin", skinLabel))
+            {
+                for (int i = 0; i < skins.Length; i++)
+                {
+                    if (ImGui.Selectable(skins[i].Name, skinEditorSkinIndex == i))
+                        skinEditorSkinIndex = i;
+                }
+
+                ImGui.EndCombo();
+            }
+
+            ImGui.SliderFloat("Wear", ref skinEditorWear, 0.001f, 1f);
+            ImGui.InputInt("Seed", ref skinEditorSeed);
+            skinEditorSeed = Math.Clamp(skinEditorSeed, 0, 999);
+            ImGui.Checkbox("StatTrak", ref skinEditorStatTrak);
+            if (skinEditorStatTrak)
+                ImGui.InputInt("StatTrak value", ref skinEditorStatTrakValue);
+
+            if (ImGui.Button("Save for weapon"))
+            {
+                _skinConfigs[skinEditorWeaponDefIndex] = new SkinConfig
+                {
+                    PaintKit = skins[skinEditorSkinIndex].PaintKit,
+                    Seed = skinEditorSeed,
+                    Wear = skinEditorWear,
+                    StatTrakEnabled = skinEditorStatTrak,
+                    StatTrak = skinEditorStatTrakValue,
+                };
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Clear saved"))
+                _skinConfigs.Remove(skinEditorWeaponDefIndex);
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Text("Saved skins");
+            if (_skinConfigs.Count == 0)
+            {
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "None saved yet");
+            }
+            else
+            {
+                foreach (var entry in _skinConfigs)
+                {
+                    ImGui.BulletText(
+                        $"{WeaponCatalog.GetName(entry.Key)} -> kit {entry.Value.PaintKit}, wear {entry.Value.Wear:0.###}");
+                }
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Text("Loadout");
+
+            var debug = SkinChangerState;
+            ImGui.Text($"Status: {debug.Status}");
+
+            if (debug.Loadout == null || debug.Loadout.Length == 0)
+            {
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "Join a match to detect your weapons");
+            }
+            else
+            {
+                foreach (LoadoutWeaponInfo weapon in debug.Loadout)
+                {
+                    string tag = weapon.Configured ? "configured" : "default";
+                    ImGui.BulletText($"{weapon.Name} (kit {weapon.CurrentPaintKit}) - {tag}");
+                }
+            }
+        }
 
         public void SetRadarBlips(IReadOnlyList<RadarBlip> blips)
         {

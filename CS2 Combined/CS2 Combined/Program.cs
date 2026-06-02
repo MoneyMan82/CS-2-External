@@ -72,6 +72,7 @@ try
             renderer.SetAntiFlashDebug(idleAntiFlashDebug);
             renderer.SetMiscDebug(default);
             renderer.SetRadarBlips([]);
+            renderer.SetSkinChangerDebug(default);
             Thread.Sleep(250);
             continue;
         }
@@ -302,6 +303,15 @@ try
             renderer.miscSpectatorList,
             out MiscDebug miscDebug);
         renderer.SetMiscDebug(miscDebug);
+
+        SkinChanger.Process(
+            mem,
+            localPlayer.pawnAddress,
+            entitySystem,
+            renderer.skinChangerEnabled,
+            renderer.GetSkinConfigs(),
+            out SkinChangerDebug skinDebug);
+        renderer.SetSkinChangerDebug(skinDebug);
 
         if (renderer.miscOverlayRadar)
         {
