@@ -359,7 +359,7 @@ namespace External_Aimbot
             ImGui.Checkbox("no recoil", ref miscNoRecoilEnabled);
             ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Removes visual recoil while shooting (no aimbot needed)");
             ImGui.Checkbox("all guns auto", ref miscAllGunsAutoEnabled);
-            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Makes semi-auto/bolt guns fire continuously while holding LMB");
+            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Hold left click - semi-auto guns fire repeatedly (Deagle, AWP, pistols)");
 
             ImGui.Spacing();
             ImGui.Text("Radar");

@@ -55,10 +55,14 @@ namespace External_Aimbot
                 SetField(classes, "C_CSWeaponBase", "m_flRecoilIndex", v => Offsets.m_flRecoilIndex = v);
                 SetField(classes, "C_CSWeaponBase", "m_fAccuracyPenalty", v => Offsets.m_fAccuracyPenalty = v);
                 SetField(classes, "C_CSWeaponBase", "m_bBurstMode", v => Offsets.m_bBurstMode = v);
+                SetField(classes, "C_CSWeaponBase", "m_bInReload", v => Offsets.m_bInReload = v);
+                SetField(classes, "C_CSWeaponBase", "m_fLastShotTime", v => Offsets.m_fLastShotTime = v);
                 SetField(classes, "C_CSWeaponBase", "m_flNextClientFireBulletTime", v => Offsets.m_flNextClientFireBulletTime = v);
                 SetField(classes, "C_CSWeaponBase", "m_flNextClientFireBulletTime_Repredict", v => Offsets.m_flNextClientFireBulletTime_Repredict = v);
                 SetField(classes, "C_CSWeaponBase", "m_nPostponeFireReadyTicks", v => Offsets.m_nPostponeFireReadyTicks = v);
                 SetField(classes, "C_CSWeaponBase", "m_flPostponeFireReadyFrac", v => Offsets.m_flPostponeFireReadyFrac = v);
+                SetField(classes, "C_BasePlayerWeapon", "m_nNextPrimaryAttackTick", v => Offsets.m_nNextPrimaryAttackTick = v);
+                SetField(classes, "C_BasePlayerWeapon", "m_flNextPrimaryAttackTickRatio", v => Offsets.m_flNextPrimaryAttackTickRatio = v);
                 SetField(classes, "C_CSWeaponBaseGun", "m_iBurstShotsRemaining", v => Offsets.m_iBurstShotsRemaining = v);
                 SetField(classes, "C_CSWeaponBaseGun", "m_bNeedsBoltAction", v => Offsets.m_bNeedsBoltAction = v);
                 SetField(classes, "EntitySpottedState_t", "m_bSpotted", v => Offsets.m_bSpotted = v);

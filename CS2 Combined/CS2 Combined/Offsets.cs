@@ -58,10 +58,14 @@
         public static int m_flRecoilIndex = 0x17E0;
         public static int m_fAccuracyPenalty = 0x17D0;
         public static int m_bBurstMode = 0x17E4;
+        public static int m_bInReload = 0x17F4;
+        public static int m_fLastShotTime = 0x1900;
         public static int m_flNextClientFireBulletTime = 0x1908;
         public static int m_flNextClientFireBulletTime_Repredict = 0x190C;
         public static int m_nPostponeFireReadyTicks = 0x17EC;
         public static int m_flPostponeFireReadyFrac = 0x17F0;
+        public static int m_nNextPrimaryAttackTick = 0x16C8;
+        public static int m_flNextPrimaryAttackTickRatio = 0x16CC;
         public static int m_iBurstShotsRemaining = 0x1CB4;
         public static int m_bNeedsBoltAction = 0x1CCD;
         public static int m_iIDEntIndex = 0x33FC;
