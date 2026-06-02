@@ -72,6 +72,8 @@ try
             renderer.SetAntiFlashDebug(idleAntiFlashDebug);
             NoRecoil.Process(mem, IntPtr.Zero, renderer.miscNoRecoilEnabled, default, Vector2.Zero, out NoRecoilDebug idleNoRecoilDebug);
             renderer.SetNoRecoilDebug(idleNoRecoilDebug);
+            AllGunsAuto.Process(mem, IntPtr.Zero, IntPtr.Zero, renderer.miscAllGunsAutoEnabled, out AllGunsAutoDebug idleAllGunsAutoDebug);
+            renderer.SetAllGunsAutoDebug(idleAllGunsAutoDebug);
             renderer.SetMiscDebug(default);
             renderer.SetRadarBlips([]);
             renderer.SetSkinChangerDebug(default);
@@ -299,6 +301,14 @@ try
             viewAngles,
             out NoRecoilDebug noRecoilDebug);
         renderer.SetNoRecoilDebug(noRecoilDebug);
+
+        AllGunsAuto.Process(
+            mem,
+            localPlayer.pawnAddress,
+            entitySystem,
+            renderer.miscAllGunsAutoEnabled,
+            out AllGunsAutoDebug allGunsAutoDebug);
+        renderer.SetAllGunsAutoDebug(allGunsAutoDebug);
 
         IntPtr localController = mem.ReadPtr(mem.Client, Offsets.dwLocalPlayerController);
         MiscFeatures.Process(

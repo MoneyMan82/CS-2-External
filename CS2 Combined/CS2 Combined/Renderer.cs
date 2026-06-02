@@ -67,6 +67,9 @@ namespace External_Aimbot
         public bool miscNoRecoilEnabled = false;
         public NoRecoilDebug NoRecoilState;
 
+        public bool miscAllGunsAutoEnabled = false;
+        public AllGunsAutoDebug AllGunsAutoState;
+
         public bool miscRadarReveal = false;
         public bool miscOverlayRadar = false;
         public bool miscRadarShowTeam = false;
@@ -355,6 +358,8 @@ namespace External_Aimbot
             ImGui.Text("Combat");
             ImGui.Checkbox("no recoil", ref miscNoRecoilEnabled);
             ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Removes visual recoil while shooting (no aimbot needed)");
+            ImGui.Checkbox("all guns auto", ref miscAllGunsAutoEnabled);
+            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Makes semi-auto/bolt guns fire continuously while holding LMB");
 
             ImGui.Spacing();
             ImGui.Text("Radar");
@@ -384,6 +389,12 @@ namespace External_Aimbot
             {
                 var recoil = NoRecoilState;
                 ImGui.Text($"No recoil: {recoil.Status}");
+            }
+
+            if (miscAllGunsAutoEnabled)
+            {
+                var auto = AllGunsAutoState;
+                ImGui.Text($"All guns auto: {auto.Status} ({auto.ActiveWeapon})");
             }
 
             var misc = MiscState;
@@ -428,6 +439,8 @@ namespace External_Aimbot
         public void SetAntiFlashDebug(AntiFlashDebug debug) => AntiFlashState = debug;
 
         public void SetNoRecoilDebug(NoRecoilDebug debug) => NoRecoilState = debug;
+
+        public void SetAllGunsAutoDebug(AllGunsAutoDebug debug) => AllGunsAutoState = debug;
 
         public void SetMiscDebug(MiscDebug debug) => MiscState = debug;
 

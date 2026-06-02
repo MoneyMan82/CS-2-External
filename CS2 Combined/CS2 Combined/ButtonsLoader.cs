@@ -18,6 +18,7 @@ namespace External_Aimbot
                     return false;
 
                 SetIfPresent(client, "jump", v => Offsets.dwJump = v);
+                SetIfPresent(client, "attack", v => Offsets.dwAttack = v);
 
                 return true;
             }

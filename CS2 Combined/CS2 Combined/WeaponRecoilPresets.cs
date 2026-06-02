@@ -364,5 +364,13 @@ namespace External_Aimbot
 
         public static bool SupportsRecoilPreset(WeaponClass weaponClass) =>
             weaponClass is WeaponClass.Rifle or WeaponClass.Smg or WeaponClass.Lmg or WeaponClass.Pistol;
+
+        public static bool IsSemiAuto(int defIndex) => defIndex switch
+        {
+            9 or 40 => true,
+            1 or 2 or 3 or 4 or 32 or 36 or 61 or 63 or 64 => true,
+            35 or 25 or 29 or 27 => true,
+            _ => false,
+        };
     }
 }

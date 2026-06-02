@@ -12,6 +12,7 @@
         public static int dwGlobalVars = 0x20606D0;
         public static int dwGameEntitySystem_highestEntityIndex = 0x2090;
         public static int dwJump = 0x2062E80;
+        public static int dwAttack = 0x2064A90;
 
         public static int dwNetworkGameClient = 0x90A1A0;
         public static int dwNetworkGameClient_signOnState = 0x230;
@@ -57,6 +58,12 @@
         public static int m_flRecoilIndex = 0x17E0;
         public static int m_fAccuracyPenalty = 0x17D0;
         public static int m_bBurstMode = 0x17E4;
+        public static int m_flNextClientFireBulletTime = 0x1908;
+        public static int m_flNextClientFireBulletTime_Repredict = 0x190C;
+        public static int m_nPostponeFireReadyTicks = 0x17EC;
+        public static int m_flPostponeFireReadyFrac = 0x17F0;
+        public static int m_iBurstShotsRemaining = 0x1CB4;
+        public static int m_bNeedsBoltAction = 0x1CCD;
         public static int m_iIDEntIndex = 0x33FC;
         public static int m_pGameSceneNode = 0x330;
         public static int m_modelState = 0x150;
