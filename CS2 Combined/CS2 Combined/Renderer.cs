@@ -395,7 +395,7 @@ namespace External_Aimbot
             {
                 var auto = AllGunsAutoState;
                 ImGui.Text($"All guns auto: {auto.Status} | {auto.Phase} | {auto.ActiveWeapon}");
-                ImGui.Text($"  attack={(auto.AttackHeld ? "yes" : "no")}  semi={(auto.IsSemiAuto ? "yes" : "no")}");
+                ImGui.Text($"  attack={(auto.AttackHeld ? "yes" : "no")}  semi={(auto.IsSemiAuto ? "yes" : "no")}  shots={auto.ShotCount}");
             }
 
             var misc = MiscState;

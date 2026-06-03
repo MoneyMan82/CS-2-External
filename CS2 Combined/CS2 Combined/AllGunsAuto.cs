@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace External_Aimbot
@@ -9,6 +10,7 @@ namespace External_Aimbot
         public bool AttackHeld { get; init; }
         public bool IsSemiAuto { get; init; }
         public int WeaponsUpdated { get; init; }
+        public int ShotCount { get; init; }
         public string Phase { get; init; }
         public string Status { get; init; }
     }
@@ -19,22 +21,16 @@ namespace External_Aimbot
         private const int AttackRelease = 256;
         private const uint MouseEventLeftDown = 0x0002;
         private const uint MouseEventLeftUp = 0x0004;
+        private const uint WmLButtonUp = 0x0202;
+        private const uint WmLButtonDown = 0x0201;
+        private const int MkLButton = 0x0001;
         private const int MinPulseIntervalMs = 16;
-        private const int ReleaseMs = 12;
-        private const int PressMs = 4;
-
-        private enum SemiClickPhase
-        {
-            Idle,
-            Release,
-            Press,
-        }
+        private const int ReleaseHoldMs = 12;
+        private const int PressHoldMs = 10;
 
         private static long _lastShotMs;
         private static long _attackStartMs;
-        private static bool _attackArmed;
-        private static SemiClickPhase _semiPhase = SemiClickPhase.Idle;
-        private static long _semiPhaseMs;
+        private static int _shotCount;
 
         public static void Process(
             GameMemory mem,
@@ -66,7 +62,6 @@ namespace External_Aimbot
 
             if (!attackHeld || activeWeapon == IntPtr.Zero || defIndex <= 0)
             {
-                _attackArmed = false;
                 ResetSemiAutoState();
                 if (isSemiAuto)
                     ReleaseAttack(mem);
@@ -76,8 +71,9 @@ namespace External_Aimbot
                     ActiveWeapon = weaponName,
                     AttackHeld = attackHeld,
                     IsSemiAuto = isSemiAuto,
+                    ShotCount = _shotCount,
                     Phase = "Idle",
-                    Status = activeWeapon == IntPtr.Zero ? "No active weapon" : "Ready (hold LMB)",
+                    Status = activeWeapon == IntPtr.Zero ? "No active weapon" : "Ready (hold LMB in CS2)",
                 };
                 return;
             }
@@ -88,13 +84,13 @@ namespace External_Aimbot
             {
                 ResetSemiAutoState();
                 ReleaseAttack(mem);
-                SimulateMouseUp();
                 debug = debug with
                 {
                     ActiveWeapon = weaponName,
                     AttackHeld = true,
                     IsSemiAuto = isSemiAuto,
                     WeaponsUpdated = updated,
+                    ShotCount = _shotCount,
                     Phase = "Idle",
                     Status = "Reloading",
                 };
@@ -103,7 +99,6 @@ namespace External_Aimbot
 
             if (!isSemiAuto)
             {
-                _attackArmed = false;
                 ResetSemiAutoState();
                 debug = new AllGunsAutoDebug
                 {
@@ -118,14 +113,11 @@ namespace External_Aimbot
                 return;
             }
 
+            if (_attackStartMs == 0)
+                _attackStartMs = Environment.TickCount64;
+
             ResetFireDelays(mem, activeWeapon);
             ClearBoltAction(mem, activeWeapon);
-
-            if (!_attackArmed)
-            {
-                _attackStartMs = Environment.TickCount64;
-                _attackArmed = true;
-            }
 
             (string status, string phase) = RunSemiAutoClicker(mem, defIndex);
             debug = new AllGunsAutoDebug
@@ -135,6 +127,7 @@ namespace External_Aimbot
                 AttackHeld = true,
                 IsSemiAuto = true,
                 WeaponsUpdated = updated,
+                ShotCount = _shotCount,
                 Phase = phase,
                 Status = status,
             };
@@ -156,54 +149,70 @@ namespace External_Aimbot
         {
             long now = Environment.TickCount64;
             int intervalMs = Math.Max(MinPulseIntervalMs, GetFireIntervalMs(defIndex));
-            long waitBase = _lastShotMs > 0 ? _lastShotMs : _attackStartMs;
 
-            switch (_semiPhase)
+            if (_lastShotMs == 0)
             {
-                case SemiClickPhase.Idle:
-                    if (now - waitBase < intervalMs)
-                        return ($"Wait {intervalMs - (now - waitBase)}ms", "Wait");
-
-                    _semiPhase = SemiClickPhase.Release;
-                    _semiPhaseMs = now;
-                    ReleaseAttack(mem);
-                    SimulateMouseUp();
-                    return ("Release", "Release");
-
-                case SemiClickPhase.Release:
-                    ReleaseAttack(mem);
-                    SimulateMouseUp();
-                    if (now - _semiPhaseMs < ReleaseMs)
-                        return ("Release", "Release");
-
-                    _semiPhase = SemiClickPhase.Press;
-                    _semiPhaseMs = now;
-                    PressAttack(mem);
-                    SimulateMouseDown();
-                    return ("Press", "Press");
-
-                case SemiClickPhase.Press:
-                    PressAttack(mem);
-                    SimulateMouseDown();
-                    if (now - _semiPhaseMs < PressMs)
-                        return ("Press", "Press");
-
-                    ReleaseAttack(mem);
-                    _semiPhase = SemiClickPhase.Idle;
-                    _lastShotMs = now;
-                    return ("Auto shot", "Shot");
-
-                default:
-                    ResetSemiAutoState();
-                    return ("Reset", "Idle");
+                if (now - _attackStartMs < MinPulseIntervalMs)
+                    return ($"Arming {MinPulseIntervalMs - (now - _attackStartMs)}ms", "Wait");
             }
+            else if (now - _lastShotMs < intervalMs)
+            {
+                return ($"Wait {intervalMs - (now - _lastShotMs)}ms", "Wait");
+            }
+
+            string method = FireSemiAutoClick(mem);
+            _lastShotMs = Environment.TickCount64;
+            _shotCount++;
+            return ($"Auto shot #{_shotCount} ({method})", "Shot");
+        }
+
+        private static string FireSemiAutoClick(GameMemory mem)
+        {
+            ReleaseAttack(mem);
+
+            if (TryPostCs2MouseClick())
+                return "window";
+
+            mouse_event(MouseEventLeftUp, 0, 0, 0, UIntPtr.Zero);
+            Thread.Sleep(ReleaseHoldMs);
+            PressAttack(mem);
+            mouse_event(MouseEventLeftDown, 0, 0, 0, UIntPtr.Zero);
+            Thread.Sleep(PressHoldMs);
+            ReleaseAttack(mem);
+            mouse_event(MouseEventLeftUp, 0, 0, 0, UIntPtr.Zero);
+            return "mouse";
+        }
+
+        private static bool TryPostCs2MouseClick()
+        {
+            IntPtr hwnd = GetCs2WindowHandle();
+            if (hwnd == IntPtr.Zero)
+                return false;
+
+            PostMessage(hwnd, WmLButtonUp, IntPtr.Zero, IntPtr.Zero);
+            Thread.Sleep(ReleaseHoldMs);
+            PostMessage(hwnd, WmLButtonDown, (IntPtr)MkLButton, IntPtr.Zero);
+            Thread.Sleep(PressHoldMs);
+            PostMessage(hwnd, WmLButtonUp, IntPtr.Zero, IntPtr.Zero);
+            return true;
+        }
+
+        private static IntPtr GetCs2WindowHandle()
+        {
+            foreach (Process process in Process.GetProcessesByName("cs2"))
+            {
+                if (process.MainWindowHandle != IntPtr.Zero)
+                    return process.MainWindowHandle;
+            }
+
+            return IntPtr.Zero;
         }
 
         private static void ResetSemiAutoState()
         {
-            _semiPhase = SemiClickPhase.Idle;
-            _semiPhaseMs = 0;
             _lastShotMs = 0;
+            _attackStartMs = 0;
+            _shotCount = 0;
         }
 
         private static int GetFireIntervalMs(int defIndex) => defIndex switch
@@ -261,13 +270,10 @@ namespace External_Aimbot
                 mem.WriteInt(mem.Client, Offsets.dwAttack, AttackRelease);
         }
 
-        private static void SimulateMouseDown() =>
-            mouse_event(MouseEventLeftDown, 0, 0, 0, UIntPtr.Zero);
-
-        private static void SimulateMouseUp() =>
-            mouse_event(MouseEventLeftUp, 0, 0, 0, UIntPtr.Zero);
-
         [DllImport("user32.dll")]
         private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
     }
 }
