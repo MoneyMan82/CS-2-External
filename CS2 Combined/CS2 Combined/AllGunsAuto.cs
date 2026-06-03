@@ -14,10 +14,17 @@ namespace External_Aimbot
     {
         private const int AttackPress = 65537;
         private const int AttackRelease = 256;
-        private const uint MouseEventLeftDown = 0x0002;
-        private const uint MouseEventLeftUp = 0x0004;
+
+        private enum SemiClickPhase
+        {
+            Idle,
+            Release,
+            Press,
+        }
 
         private static long _lastShotMs;
+        private static SemiClickPhase _semiPhase = SemiClickPhase.Idle;
+        private static long _semiPhaseMs;
 
         public static void Process(
             GameMemory mem,
@@ -29,10 +36,14 @@ namespace External_Aimbot
             debug = new AllGunsAutoDebug { Status = enabled ? "Active" : "Disabled" };
 
             if (!enabled || pawn == IntPtr.Zero || entitySystem == IntPtr.Zero)
+            {
+                ResetSemiAutoState();
                 return;
+            }
 
             if (Offsets.m_bBurstMode == 0)
             {
+                ResetSemiAutoState();
                 debug = debug with { Status = "Weapon offsets missing" };
                 return;
             }
@@ -50,6 +61,7 @@ namespace External_Aimbot
 
             if (!InputState.IsAttackHeld() || activeWeapon == IntPtr.Zero || defIndex <= 0)
             {
+                ResetSemiAutoState();
                 ReleaseAttack(mem);
                 debug = debug with
                 {
@@ -62,6 +74,7 @@ namespace External_Aimbot
 
             if (mem.ReadBool(activeWeapon, Offsets.m_bInReload))
             {
+                ResetSemiAutoState();
                 ReleaseAttack(mem);
                 debug = debug with
                 {
@@ -88,6 +101,7 @@ namespace External_Aimbot
                 return;
             }
 
+            ResetSemiAutoState();
             HoldAttack(mem);
             debug = new AllGunsAutoDebug
             {
@@ -102,21 +116,52 @@ namespace External_Aimbot
         {
             long now = Environment.TickCount64;
             int intervalMs = GetFireIntervalMs(defIndex);
+            int releaseMs = 6;
+            int pressMs = 4;
 
-            if (now - _lastShotMs < intervalMs)
-                return "Waiting";
+            switch (_semiPhase)
+            {
+                case SemiClickPhase.Idle:
+                    ReleaseAttack(mem);
+                    if (now - _lastShotMs < intervalMs)
+                        return "Waiting";
 
-            // User keeps LMB held; synthetic up-then-down registers as a new semi-auto click.
-            SimulateMouseUp();
-            Thread.Sleep(1);
-            SimulateMouseDown();
+                    _semiPhase = SemiClickPhase.Release;
+                    _semiPhaseMs = now;
+                    ReleaseAttack(mem);
+                    return "Release";
 
-            PressAttack(mem);
-            Thread.Sleep(1);
-            ReleaseAttack(mem);
+                case SemiClickPhase.Release:
+                    ReleaseAttack(mem);
+                    if (now - _semiPhaseMs < releaseMs)
+                        return "Release";
 
-            _lastShotMs = now;
-            return "Auto shot";
+                    _semiPhase = SemiClickPhase.Press;
+                    _semiPhaseMs = now;
+                    PressAttack(mem);
+                    return "Press";
+
+                case SemiClickPhase.Press:
+                    PressAttack(mem);
+                    if (now - _semiPhaseMs < pressMs)
+                        return "Press";
+
+                    ReleaseAttack(mem);
+                    _semiPhase = SemiClickPhase.Idle;
+                    _lastShotMs = now;
+                    return "Auto shot";
+
+                default:
+                    ResetSemiAutoState();
+                    ReleaseAttack(mem);
+                    return "Reset";
+            }
+        }
+
+        private static void ResetSemiAutoState()
+        {
+            _semiPhase = SemiClickPhase.Idle;
+            _semiPhaseMs = 0;
         }
 
         private static int GetFireIntervalMs(int defIndex) => defIndex switch
@@ -181,14 +226,5 @@ namespace External_Aimbot
             if (Offsets.dwAttack != 0)
                 mem.WriteInt(mem.Client, Offsets.dwAttack, AttackRelease);
         }
-
-        private static void SimulateMouseDown() =>
-            mouse_event(MouseEventLeftDown, 0, 0, 0, UIntPtr.Zero);
-
-        private static void SimulateMouseUp() =>
-            mouse_event(MouseEventLeftUp, 0, 0, 0, UIntPtr.Zero);
-
-        [DllImport("user32.dll")]
-        private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
     }
 }
