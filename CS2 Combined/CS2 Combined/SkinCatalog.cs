@@ -4,6 +4,7 @@ namespace External_Aimbot
     {
         public int PaintKit { get; init; }
         public string Name { get; init; }
+        public bool LegacyModel { get; init; }
     }
 
     internal static class SkinCatalog
@@ -23,9 +24,9 @@ namespace External_Aimbot
             [
                 new() { PaintKit = 0, Name = "Default" },
                 new() { PaintKit = 282, Name = "Redline" },
-                new() { PaintKit = 180, Name = "Fire Serpent" },
+                new() { PaintKit = 180, Name = "Fire Serpent", LegacyModel = true },
                 new() { PaintKit = 302, Name = "Vulcan" },
-                new() { PaintKit = 801, Name = "Asiimov" },
+                new() { PaintKit = 801, Name = "Asiimov", LegacyModel = true },
                 new() { PaintKit = 639, Name = "Bloodsport" },
                 new() { PaintKit = 707, Name = "Neon Rider" },
                 new() { PaintKit = 675, Name = "The Empress" },
@@ -33,7 +34,7 @@ namespace External_Aimbot
             [16] =
             [
                 new() { PaintKit = 0, Name = "Default" },
-                new() { PaintKit = 255, Name = "Asiimov" },
+                new() { PaintKit = 255, Name = "Asiimov", LegacyModel = true },
                 new() { PaintKit = 309, Name = "Howl" },
                 new() { PaintKit = 588, Name = "Desolate Space" },
                 new() { PaintKit = 695, Name = "Neo-Noir" },

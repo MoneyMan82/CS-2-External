@@ -46,11 +46,18 @@ namespace External_Aimbot
                 SetField(classes, "C_EconItemView", "m_iItemDefinitionIndex", v => Offsets.m_iItemDefinitionIndex = v);
                 SetField(classes, "C_EconItemView", "m_iItemIDHigh", v => Offsets.m_iItemIDHigh = v);
                 SetField(classes, "C_EconItemView", "m_iItemIDLow", v => Offsets.m_iItemIDLow = v);
+                SetField(classes, "C_EconItemView", "m_bInitialized", v => Offsets.m_bInitialized = v);
                 SetField(classes, "CPlayer_WeaponServices", "m_hMyWeapons", v => Offsets.m_hMyWeapons = v);
                 SetField(classes, "C_EconEntity", "m_nFallbackPaintKit", v => Offsets.m_nFallbackPaintKit = v);
                 SetField(classes, "C_EconEntity", "m_nFallbackSeed", v => Offsets.m_nFallbackSeed = v);
                 SetField(classes, "C_EconEntity", "m_flFallbackWear", v => Offsets.m_flFallbackWear = v);
                 SetField(classes, "C_EconEntity", "m_nFallbackStatTrak", v => Offsets.m_nFallbackStatTrak = v);
+                SetField(classes, "C_BaseEntity", "m_hOwnerEntity", v => Offsets.m_hOwnerEntity = v);
+                SetField(classes, "C_CSPlayerPawn", "m_hHudModelArms", v => Offsets.m_hHudModelArms = v);
+                SetField(classes, "CGameSceneNode", "m_pChild", v => Offsets.m_pChild = v);
+                SetField(classes, "CGameSceneNode", "m_pNextSibling", v => Offsets.m_pNextSibling = v);
+                SetField(classes, "CGameSceneNode", "m_pOwner", v => Offsets.m_pOwner = v);
+                SetField(classes, "CModelState", "m_MeshGroupMask", v => Offsets.m_MeshGroupMask = v);
                 SetField(classes, "C_CSWeaponBase", "m_iRecoilIndex", v => Offsets.m_iRecoilIndex = v);
                 SetField(classes, "C_CSWeaponBase", "m_flRecoilIndex", v => Offsets.m_flRecoilIndex = v);
                 SetField(classes, "C_CSWeaponBase", "m_fAccuracyPenalty", v => Offsets.m_fAccuracyPenalty = v);

@@ -111,7 +111,15 @@ namespace External_Aimbot
         {
             Position = new Point(0, 0);
             SyncOverlayToGameWindow();
+            LoadUiFont();
             return Task.CompletedTask;
+        }
+
+        private void LoadUiFont()
+        {
+            string fontPath = Path.Combine(AppContext.BaseDirectory, "fonts", "FredokaOne-Regular.ttf");
+            if (File.Exists(fontPath))
+                ReplaceFont(fontPath, 17, FontGlyphRangeType.English);
         }
 
         protected override void Render()
@@ -435,7 +443,8 @@ namespace External_Aimbot
         {
             UiTheme.Section("Core");
             ImGui.Checkbox("Enable skin changer", ref skinChangerEnabled);
-            UiTheme.HintMuted("Client-side only. Applies to weapons in your current loadout.");
+            UiTheme.HintMuted("1. Pick weapon + skin  2. Save for weapon  3. Enable and spawn with that gun.");
+            UiTheme.HintMuted("Client-side visual only. Gloves are not supported yet.");
 
             UiTheme.Section("Editor");
             string weaponLabel = WeaponCatalog.GetName(skinEditorWeaponDefIndex);
@@ -476,14 +485,33 @@ namespace External_Aimbot
             ImGui.Spacing();
             if (ImGui.Button("Save for weapon", new Vector2(140f, 0f)))
             {
+                SkinOption selected = skins[skinEditorSkinIndex];
                 _skinConfigs[skinEditorWeaponDefIndex] = new SkinConfig
                 {
-                    PaintKit = skins[skinEditorSkinIndex].PaintKit,
+                    PaintKit = selected.PaintKit,
                     Seed = skinEditorSeed,
                     Wear = skinEditorWear,
                     StatTrakEnabled = skinEditorStatTrak,
                     StatTrak = skinEditorStatTrakValue,
+                    LegacyModel = selected.LegacyModel,
                 };
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Apply to loadout guns", new Vector2(160f, 0f)))
+            {
+                SkinOption selected = skins[skinEditorSkinIndex];
+                var config = new SkinConfig
+                {
+                    PaintKit = selected.PaintKit,
+                    Seed = skinEditorSeed,
+                    Wear = skinEditorWear,
+                    StatTrakEnabled = skinEditorStatTrak,
+                    StatTrak = skinEditorStatTrakValue,
+                    LegacyModel = selected.LegacyModel,
+                };
+                _skinConfigs[skinEditorWeaponDefIndex] = config;
+                skinChangerEnabled = true;
             }
 
             ImGui.SameLine();
@@ -507,6 +535,13 @@ namespace External_Aimbot
             UiTheme.BeginStatusPanel();
             var debug = SkinChangerState;
             UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
+            UiTheme.StatusRow(
+                "Refresh fn",
+                debug.RegenerateFound ? "found" : "missing",
+                debug.RegenerateFound ? UiTheme.TextSuccess : UiTheme.TextDanger);
+
+            if (debug.SkinsRefreshed > 0)
+                UiTheme.StatusRow("Refreshed", debug.SkinsRefreshed.ToString(), UiTheme.TextInfo);
 
             if (debug.Loadout == null || debug.Loadout.Length == 0)
             {
@@ -654,20 +689,43 @@ namespace External_Aimbot
 
             var drawList = ImGui.GetBackgroundDrawList();
             var displaySize = ImGui.GetIO().DisplaySize;
-            var center = new Vector2(displaySize.X / 2f, displaySize.Y / 2f);
+            var center = new Vector2(
+                MathF.Floor(displaySize.X * 0.5f) + 0.5f,
+                MathF.Floor(displaySize.Y * 0.5f) + 0.5f);
 
-            float gameFov = miscFovChanger ? miscFovValue : 90f;
+            float gameFov = MiscState.CurrentGameFov > 0
+                ? MiscState.CurrentGameFov
+                : miscFovChanger ? miscFovValue : 90f;
+
             float radius = Calculate.GetFovCircleRadius(fov, displaySize.X, displaySize.Y, gameFov);
-            if (radius <= 0f)
+            if (radius <= 1f)
                 return;
 
-            uint circleColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.2f, 1f, 0.35f, 0.85f));
-            uint outlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, 0.7f));
+            int segments = Math.Clamp((int)MathF.Ceiling(2f * MathF.PI * radius), 384, 2048);
+            Vector4 accent = UiTheme.Accent;
 
-            drawList.AddCircle(center, radius + 1f, outlineColor, 64, 2.5f);
-            drawList.AddCircle(center, radius, circleColor, 64, 1.5f);
-            drawList.AddCircleFilled(center, 2.5f, circleColor);
+            DrawCircleOutline(drawList, center, radius, segments, ToColor(accent, 0.18f), 3f);
+            DrawCircleOutline(drawList, center, radius, segments, ToColor(Vector4.Zero, 0.55f), 2f);
+            DrawCircleOutline(drawList, center, radius, segments, ToColor(accent, 1f), 1.25f);
+
+            drawList.AddCircleFilled(center, 1.5f, ToColor(accent, 1f), 16);
         }
+
+        private static void DrawCircleOutline(
+            ImDrawListPtr drawList,
+            Vector2 center,
+            float radius,
+            int segments,
+            uint color,
+            float thickness)
+        {
+            drawList.PathClear();
+            drawList.PathArcTo(center, radius, 0f, MathF.PI * 2f, segments);
+            drawList.PathStroke(color, ImDrawFlags.Closed, thickness);
+        }
+
+        private static uint ToColor(Vector4 rgb, float alpha) =>
+            ImGui.ColorConvertFloat4ToU32(new Vector4(rgb.X, rgb.Y, rgb.Z, alpha));
 
         private void DrawDisplayModeHelp()
         {

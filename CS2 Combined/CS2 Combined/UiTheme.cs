@@ -44,6 +44,10 @@ namespace External_Aimbot
             style.GrabMinSize = 12f;
             style.TabBarBorderSize = 0f;
             style.TabBorderSize = 0f;
+            style.AntiAliasedLines = true;
+            style.AntiAliasedFill = true;
+            style.AntiAliasedLinesUseTex = true;
+            style.CircleTessellationMaxError = 0.01f;
 
             style.Colors[(int)ImGuiCol.Text] = TextPrimary;
             style.Colors[(int)ImGuiCol.TextDisabled] = TextMuted;
@@ -104,7 +108,7 @@ namespace External_Aimbot
             ImGui.Dummy(new Vector2(0f, 10f));
 
             ImGui.PushStyleColor(ImGuiCol.Text, Accent);
-            ImGui.SetWindowFontScale(1.12f);
+            ImGui.SetWindowFontScale(1.08f);
             ImGui.Text("CS2 COMBINED");
             ImGui.SetWindowFontScale(1f);
             ImGui.PopStyleColor();

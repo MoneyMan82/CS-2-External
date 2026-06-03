@@ -48,7 +48,14 @@
         public static int m_iItemDefinitionIndex = 0x1BA;
         public static int m_iItemIDHigh = 0x1D0;
         public static int m_iItemIDLow = 0x1D4;
+        public static int m_bInitialized = 0x1E8;
         public static int m_hMyWeapons = 0x48;
+        public static int m_hOwnerEntity = 0x520;
+        public static int m_hHudModelArms = 0x1B58;
+        public static int m_pChild = 0x40;
+        public static int m_pNextSibling = 0x48;
+        public static int m_pOwner = 0x30;
+        public static int m_MeshGroupMask = 0x1C8;
 
         public static int m_nFallbackPaintKit = 0x1658;
         public static int m_nFallbackSeed = 0x165C;

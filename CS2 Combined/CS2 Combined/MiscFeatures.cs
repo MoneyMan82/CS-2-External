@@ -11,6 +11,7 @@ namespace External_Aimbot
         public int SpectatorCount { get; init; }
         public string[] Spectators { get; init; }
         public int AppliedFov { get; init; }
+        public int CurrentGameFov { get; init; }
     }
 
     internal static class MiscFeatures
@@ -35,6 +36,8 @@ namespace External_Aimbot
 
             if (localPawn == IntPtr.Zero || entitySystem == IntPtr.Zero)
                 return;
+
+            debug = debug with { CurrentGameFov = ReadGameFov(mem, localPawn) };
 
             if (radarReveal)
             {
@@ -74,6 +77,19 @@ namespace External_Aimbot
                     Spectators = spectators.ToArray(),
                 };
             }
+        }
+
+        private static int ReadGameFov(GameMemory mem, IntPtr localPawn)
+        {
+            if (Offsets.m_pCameraServices == 0 || Offsets.m_iFOV == 0)
+                return 0;
+
+            IntPtr cameraServices = mem.ReadPtr(localPawn, Offsets.m_pCameraServices);
+            if (cameraServices == IntPtr.Zero)
+                return 0;
+
+            int fov = mem.ReadInt(cameraServices, Offsets.m_iFOV);
+            return fov is >= 60 and <= 140 ? fov : 0;
         }
 
         private static int ApplyFov(GameMemory mem, IntPtr localPawn, int fovValue)
