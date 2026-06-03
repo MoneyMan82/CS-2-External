@@ -1,0 +1,23 @@
+---
+description: After code changes, build, commit, and push to GitHub
+alwaysApply: true
+---
+
+# GitHub push workflow
+
+After completing implementation work in this repo (fixes, features, refactors):
+
+1. **Build** the project (`dotnet build -c Release` in `CS2 Combined/CS2 Combined/`).
+2. **Commit** all relevant changes with a concise message focused on why.
+3. **Push** to GitHub: `git push -u origin HEAD` on `main`.
+
+Remote: `https://github.com/MoneyMan82/CS-2-External.git`
+
+Do this at the end of every task that changes code — do not wait for the user to ask.
+
+Skip commit/push only when:
+- The user explicitly says not to commit or push
+- There are no file changes to commit
+- The work was question-only or review-only with no edits
+
+Never force-push to `main`. Never update git config.
