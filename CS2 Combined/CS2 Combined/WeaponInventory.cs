@@ -13,7 +13,7 @@ namespace External_Aimbot
 
             foreach (int handle in ReadWeaponHandles(mem, weaponServices))
             {
-                IntPtr weapon = EntityList.ResolveHandle(mem, entitySystem, handle);
+                IntPtr weapon = EntityList.ResolveWeaponHandle(mem, entitySystem, handle);
                 if (weapon != IntPtr.Zero && seen.Add(weapon))
                     yield return weapon;
             }
@@ -26,7 +26,7 @@ namespace External_Aimbot
                 return IntPtr.Zero;
 
             int handle = mem.ReadInt(weaponServices, Offsets.m_hActiveWeapon);
-            return EntityList.ResolveHandle(mem, entitySystem, handle);
+            return EntityList.ResolveWeaponHandle(mem, entitySystem, handle);
         }
 
         public static int ReadDefinitionIndex(GameMemory mem, IntPtr weapon)

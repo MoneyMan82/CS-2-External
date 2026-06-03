@@ -32,6 +32,22 @@ namespace External_Aimbot
             return ReadPlayerPawnAtSlot(mem, listEntry, handle & 0x1FF);
         }
 
+        public static IntPtr ResolveWeaponHandle(GameMemory mem, IntPtr entitySystem, int handle)
+        {
+            if (entitySystem == IntPtr.Zero || handle == 0)
+                return IntPtr.Zero;
+
+            IntPtr listEntry = GetListEntry(mem, entitySystem, handle);
+            if (listEntry != IntPtr.Zero)
+            {
+                IntPtr entity = ReadEntityAtSlot(mem, listEntry, handle & 0x1FF);
+                if (IsValidUserAddress(entity))
+                    return entity;
+            }
+
+            return ResolveEntityIndex(mem, entitySystem, handle & 0x7FFF);
+        }
+
         public static IntPtr ResolveEntityIndex(GameMemory mem, IntPtr entitySystem, int index)
         {
             if (entitySystem == IntPtr.Zero || index <= 0)

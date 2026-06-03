@@ -61,7 +61,7 @@ namespace External_Aimbot
                 return invalid;
 
             int weaponHandle = mem.ReadInt(weaponServices, Offsets.m_hActiveWeapon);
-            IntPtr weapon = EntityList.ResolveHandle(mem, entitySystem, weaponHandle);
+            IntPtr weapon = EntityList.ResolveWeaponHandle(mem, entitySystem, weaponHandle);
             if (weapon == IntPtr.Zero)
                 return invalid;
 
