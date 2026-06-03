@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace External_Aimbot
@@ -170,7 +169,7 @@ namespace External_Aimbot
         {
             ReleaseAttack(mem);
 
-            if (TryPostCs2MouseClick())
+            if (TryPostCs2MouseClick(mem))
                 return "window";
 
             mouse_event(MouseEventLeftUp, 0, 0, 0, UIntPtr.Zero);
@@ -183,23 +182,26 @@ namespace External_Aimbot
             return "mouse";
         }
 
-        private static bool TryPostCs2MouseClick()
+        private static bool TryPostCs2MouseClick(GameMemory mem)
         {
             IntPtr hwnd = GetCs2WindowHandle();
             if (hwnd == IntPtr.Zero)
                 return false;
 
+            ReleaseAttack(mem);
             PostMessage(hwnd, WmLButtonUp, IntPtr.Zero, IntPtr.Zero);
             Thread.Sleep(ReleaseHoldMs);
+            PressAttack(mem);
             PostMessage(hwnd, WmLButtonDown, (IntPtr)MkLButton, IntPtr.Zero);
             Thread.Sleep(PressHoldMs);
+            ReleaseAttack(mem);
             PostMessage(hwnd, WmLButtonUp, IntPtr.Zero, IntPtr.Zero);
             return true;
         }
 
         private static IntPtr GetCs2WindowHandle()
         {
-            foreach (Process process in Process.GetProcessesByName("cs2"))
+            foreach (System.Diagnostics.Process process in System.Diagnostics.Process.GetProcessesByName("cs2"))
             {
                 if (process.MainWindowHandle != IntPtr.Zero)
                     return process.MainWindowHandle;
