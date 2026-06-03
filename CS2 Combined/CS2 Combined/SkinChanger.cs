@@ -22,8 +22,6 @@ namespace External_Aimbot
     {
         public int WeaponsFound { get; init; }
         public int SkinsApplied { get; init; }
-        public int SkinsRefreshed { get; init; }
-        public bool RegenerateFound { get; init; }
         public string Status { get; init; }
         public LoadoutWeaponInfo[] Loadout { get; init; }
     }
@@ -31,11 +29,6 @@ namespace External_Aimbot
     internal static class SkinChanger
     {
         private const int ForceFallbackItemId = -1;
-        private const string RegeneratePattern = "48 83 EC ? E8 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? 48 8B 10";
-
-        private static IntPtr _regenerateWeaponSkins;
-        private static bool _regenerateScanAttempted;
-        private static long _lastRefreshMs;
 
         public static void Process(
             GameMemory mem,
@@ -46,12 +39,10 @@ namespace External_Aimbot
             out SkinChangerDebug debug)
         {
             var loadout = new List<LoadoutWeaponInfo>();
-            bool regenerateFound = EnsureRegenerateFunction(mem);
             debug = new SkinChangerDebug
             {
                 Status = enabled ? "Active" : "Disabled",
                 Loadout = [],
-                RegenerateFound = regenerateFound,
             };
 
             if (!enabled || pawn == IntPtr.Zero || entitySystem == IntPtr.Zero)
@@ -63,20 +54,13 @@ namespace External_Aimbot
                 return;
             }
 
-            if (!regenerateFound)
+            if (configs.Count == 0)
             {
-                debug = debug with
-                {
-                    Status = "RegenerateWeaponSkins not found — skins cannot refresh after game updates",
-                };
+                debug = debug with { Status = "Enabled — save a skin for a weapon first" };
             }
 
             int applied = 0;
-            int refreshed = 0;
             var seen = new HashSet<IntPtr>();
-            var configuredWeapons = new List<IntPtr>();
-            long now = Environment.TickCount64;
-            bool shouldRefresh = regenerateFound && configs.Count > 0 && now - _lastRefreshMs >= 300;
 
             foreach (IntPtr weapon in WeaponInventory.EnumerateWeapons(mem, pawn, entitySystem))
             {
@@ -102,53 +86,22 @@ namespace External_Aimbot
                     continue;
 
                 if (ApplySkin(mem, pawn, entitySystem, weapon, config))
-                {
                     applied++;
-                    configuredWeapons.Add(weapon);
-                }
-            }
-
-            if (shouldRefresh && configuredWeapons.Count > 0)
-            {
-                foreach (IntPtr weapon in configuredWeapons)
-                {
-                    if (mem.TryCallFastcall(_regenerateWeaponSkins, weapon))
-                        refreshed++;
-                }
-
-                _lastRefreshMs = now;
             }
 
             debug = new SkinChangerDebug
             {
                 WeaponsFound = loadout.Count,
                 SkinsApplied = applied,
-                SkinsRefreshed = refreshed,
-                RegenerateFound = regenerateFound,
                 Status = loadout.Count == 0
                     ? "No loadout weapons found — join a match with guns"
-                    : !regenerateFound
-                        ? $"Wrote {applied} weapon(s), but refresh function missing"
-                        : refreshed > 0
-                            ? $"Applied {applied} weapon(s), refreshed {refreshed}"
-                            : configs.Count == 0
-                                ? "Enabled — save a skin for a weapon first"
-                                : $"Tracking {loadout.Count} weapon(s), {applied} configured",
+                    : configs.Count == 0
+                        ? "Enabled — save a skin for a weapon first"
+                        : applied > 0
+                            ? $"Applied {applied}/{loadout.Count} configured weapon(s)"
+                            : $"Tracking {loadout.Count} weapon(s) — switch weapons or re-buy to refresh",
                 Loadout = loadout.ToArray(),
             };
-        }
-
-        private static bool EnsureRegenerateFunction(GameMemory mem)
-        {
-            if (_regenerateWeaponSkins != IntPtr.Zero)
-                return true;
-
-            if (_regenerateScanAttempted)
-                return false;
-
-            _regenerateScanAttempted = true;
-            _regenerateWeaponSkins = ModulePatternScanner.FindInModule(mem, "client.dll", RegeneratePattern);
-            return _regenerateWeaponSkins != IntPtr.Zero;
         }
 
         private static bool ApplySkin(
@@ -158,7 +111,19 @@ namespace External_Aimbot
             IntPtr weapon,
             SkinConfig config)
         {
+            if (!IsValidAddress(weapon))
+                return false;
+
             IntPtr itemView = weapon + Offsets.m_AttributeManager + Offsets.m_Item;
+            int itemIdHigh = mem.ReadInt(itemView, Offsets.m_iItemIDHigh);
+            int currentPaint = mem.ReadInt(weapon, Offsets.m_nFallbackPaintKit);
+
+            bool alreadyApplied =
+                itemIdHigh == ForceFallbackItemId &&
+                currentPaint == config.PaintKit;
+
+            if (alreadyApplied)
+                return false;
 
             mem.WriteInt(itemView, Offsets.m_iItemIDHigh, ForceFallbackItemId);
             mem.WriteInt(itemView, Offsets.m_iItemIDLow, 0);
@@ -187,43 +152,50 @@ namespace External_Aimbot
 
         private static void ApplyMeshMask(GameMemory mem, IntPtr entity, ulong meshMask)
         {
-            if (Offsets.m_MeshGroupMask == 0 || Offsets.m_pGameSceneNode == 0)
+            if (!IsValidAddress(entity) || Offsets.m_MeshGroupMask == 0 || Offsets.m_pGameSceneNode == 0)
                 return;
 
             IntPtr sceneNode = mem.ReadPtr(entity, Offsets.m_pGameSceneNode);
-            if (sceneNode == IntPtr.Zero)
+            if (!IsValidAddress(sceneNode))
                 return;
 
             IntPtr modelState = sceneNode + Offsets.m_modelState;
-            mem.WriteULong(modelState, Offsets.m_MeshGroupMask, meshMask);
+            if (!IsValidAddress(modelState))
+                return;
 
-            IntPtr dirtyAttributes = mem.ReadPtr(modelState, 0xD8);
-            if (dirtyAttributes != IntPtr.Zero)
-                mem.WriteULong(dirtyAttributes, 0x10, meshMask);
+            mem.WriteULong(modelState, Offsets.m_MeshGroupMask, meshMask);
+        }
+
+        private static bool IsValidAddress(IntPtr address)
+        {
+            long value = address.ToInt64();
+            return value > 0x10000 && value < 0x7FFFFFFFFFFF;
         }
     }
 
     internal static class HudWeaponResolver
     {
+        private const int MaxSceneNodes = 64;
+
         public static IntPtr Find(GameMemory mem, IntPtr pawn, IntPtr entitySystem, IntPtr weapon)
         {
-            if (Offsets.m_hHudModelArms == 0)
+            if (Offsets.m_hHudModelArms == 0 || !IsValidAddress(pawn) || !IsValidAddress(weapon))
                 return IntPtr.Zero;
 
             int armsHandle = mem.ReadInt(pawn, Offsets.m_hHudModelArms);
             IntPtr arms = EntityList.ResolveWeaponHandle(mem, entitySystem, armsHandle);
-            if (arms == IntPtr.Zero)
+            if (!IsValidAddress(arms))
                 return IntPtr.Zero;
 
             IntPtr armsNode = mem.ReadPtr(arms, Offsets.m_pGameSceneNode);
-            if (armsNode == IntPtr.Zero)
+            if (!IsValidAddress(armsNode))
                 return IntPtr.Zero;
 
             IntPtr child = mem.ReadPtr(armsNode, Offsets.m_pChild);
-            while (child != IntPtr.Zero)
+            for (int i = 0; i < MaxSceneNodes && IsValidAddress(child); i++)
             {
                 IntPtr owner = mem.ReadPtr(child, Offsets.m_pOwner);
-                if (owner != IntPtr.Zero)
+                if (IsValidAddress(owner))
                 {
                     int ownerHandle = mem.ReadInt(owner, Offsets.m_hOwnerEntity);
                     IntPtr ownerEntity = EntityList.ResolveWeaponHandle(mem, entitySystem, ownerHandle);
@@ -235,6 +207,12 @@ namespace External_Aimbot
             }
 
             return IntPtr.Zero;
+        }
+
+        private static bool IsValidAddress(IntPtr address)
+        {
+            long value = address.ToInt64();
+            return value > 0x10000 && value < 0x7FFFFFFFFFFF;
         }
     }
 }

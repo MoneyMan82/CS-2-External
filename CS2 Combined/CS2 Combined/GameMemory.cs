@@ -9,12 +9,6 @@ namespace External_Aimbot
         private const uint ProcessVmRead = 0x0010;
         private const uint ProcessVmWrite = 0x0020;
         private const uint ProcessQueryInformation = 0x0400;
-        private const uint ProcessVmOperation = 0x0008;
-        private const uint ProcessCreateThread = 0x0002;
-        private const uint MemCommit = 0x1000;
-        private const uint MemRelease = 0x8000;
-        private const uint PageExecuteReadwrite = 0x40;
-        private const uint Infinite = 0xFFFFFFFF;
 
         private readonly IntPtr _handle;
         private Process? _process;
@@ -27,10 +21,7 @@ namespace External_Aimbot
             _process = Process.GetProcessesByName("cs2").FirstOrDefault()
                 ?? throw new InvalidOperationException("cs2.exe is not running.");
 
-            _handle = OpenProcess(
-                ProcessVmRead | ProcessVmWrite | ProcessQueryInformation | ProcessVmOperation | ProcessCreateThread,
-                false,
-                _process.Id);
+            _handle = OpenProcess(ProcessVmRead | ProcessVmWrite | ProcessQueryInformation, false, _process.Id);
             if (_handle == IntPtr.Zero)
                 throw new InvalidOperationException("Failed to open cs2 process. Try running as administrator.");
 
@@ -213,47 +204,6 @@ namespace External_Aimbot
             return true;
         }
 
-        public bool TryCallFastcall(IntPtr function, IntPtr argument)
-        {
-            if (_handle == IntPtr.Zero || function == IntPtr.Zero)
-                return false;
-
-            byte[] shellcode =
-            [
-                0x48, 0xB9,
-                ..BitConverter.GetBytes(argument.ToInt64()),
-                0x48, 0xB8,
-                ..BitConverter.GetBytes(function.ToInt64()),
-                0x48, 0x83, 0xEC, 0x28,
-                0xFF, 0xD0,
-                0x48, 0x83, 0xC4, 0x28,
-                0x33, 0xC0,
-                0xC3,
-            ];
-
-            IntPtr remoteCode = VirtualAllocEx(_handle, IntPtr.Zero, (uint)shellcode.Length, MemCommit, PageExecuteReadwrite);
-            if (remoteCode == IntPtr.Zero)
-                return false;
-
-            try
-            {
-                if (!WriteProcessMemory(_handle, remoteCode, shellcode, shellcode.Length, out _))
-                    return false;
-
-                IntPtr thread = CreateRemoteThread(_handle, IntPtr.Zero, 0, remoteCode, IntPtr.Zero, 0, out _);
-                if (thread == IntPtr.Zero)
-                    return false;
-
-                WaitForSingleObject(thread, Infinite);
-                CloseHandle(thread);
-                return true;
-            }
-            finally
-            {
-                VirtualFreeEx(_handle, remoteCode, 0, MemRelease);
-            }
-        }
-
         public void Dispose()
         {
             if (_handle != IntPtr.Zero)
@@ -298,33 +248,5 @@ namespace External_Aimbot
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr handle);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr VirtualAllocEx(
-            IntPtr process,
-            IntPtr address,
-            uint size,
-            uint allocationType,
-            uint protect);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool VirtualFreeEx(
-            IntPtr process,
-            IntPtr address,
-            uint size,
-            uint freeType);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr CreateRemoteThread(
-            IntPtr process,
-            IntPtr threadAttributes,
-            uint stackSize,
-            IntPtr startAddress,
-            IntPtr parameter,
-            uint creationFlags,
-            out uint threadId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
     }
 }

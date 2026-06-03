@@ -444,7 +444,8 @@ namespace External_Aimbot
             UiTheme.Section("Core");
             ImGui.Checkbox("Enable skin changer", ref skinChangerEnabled);
             UiTheme.HintMuted("1. Pick weapon + skin  2. Save for weapon  3. Enable and spawn with that gun.");
-            UiTheme.HintMuted("Client-side visual only. Gloves are not supported yet.");
+            UiTheme.HintMuted("Client-side visual only. Drop/re-buy weapon if skin does not show.");
+            UiTheme.HintMuted("Gloves are not supported yet.");
 
             UiTheme.Section("Editor");
             string weaponLabel = WeaponCatalog.GetName(skinEditorWeaponDefIndex);
@@ -535,13 +536,6 @@ namespace External_Aimbot
             UiTheme.BeginStatusPanel();
             var debug = SkinChangerState;
             UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
-            UiTheme.StatusRow(
-                "Refresh fn",
-                debug.RegenerateFound ? "found" : "missing",
-                debug.RegenerateFound ? UiTheme.TextSuccess : UiTheme.TextDanger);
-
-            if (debug.SkinsRefreshed > 0)
-                UiTheme.StatusRow("Refreshed", debug.SkinsRefreshed.ToString(), UiTheme.TextInfo);
 
             if (debug.Loadout == null || debug.Loadout.Length == 0)
             {
