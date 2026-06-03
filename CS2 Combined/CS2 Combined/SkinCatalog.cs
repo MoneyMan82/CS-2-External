@@ -12,10 +12,10 @@ namespace External_Aimbot
         public static readonly int[] ConfigurableWeapons =
         [
             7, 16, 60, 9, 40, 10, 13, 8, 39,
-            1, 4, 61, 36, 64,
+            1, 4, 32, 61, 36, 64,
             17, 34, 23, 24, 19,
             35, 25, 27, 29,
-            42, 500, 503, 505, 506, 507, 508, 509, 512, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 525, 526,
+            42, 59, 500, 503, 505, 506, 507, 508, 509, 512, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 525, 526,
         ];
 
         private static readonly Dictionary<int, SkinOption[]> SkinsByWeapon = new()
@@ -118,6 +118,17 @@ namespace External_Aimbot
                 new() { PaintKit = 522, Name = "Fade" },
                 new() { PaintKit = 843, Name = "Printstream" },
             ],
+            [32] =
+            [
+                new() { PaintKit = 0, Name = "Default" },
+                new() { PaintKit = 361, Name = "Fire Elemental" },
+                new() { PaintKit = 591, Name = "Imperial Dragon" },
+                new() { PaintKit = 211, Name = "Ocean Foam" },
+                new() { PaintKit = 184, Name = "Corticera" },
+                new() { PaintKit = 673, Name = "Chainmail" },
+                new() { PaintKit = 878, Name = "Wicked Sick" },
+                new() { PaintKit = 246, Name = "Amber Fade" },
+            ],
             [17] =
             [
                 new() { PaintKit = 0, Name = "Default" },
@@ -170,19 +181,27 @@ namespace External_Aimbot
             new() { PaintKit = 0, Name = "Default" },
             new() { PaintKit = 38, Name = "Fade" },
             new() { PaintKit = 59, Name = "Slaughter" },
+            new() { PaintKit = 12, Name = "Crimson Web" },
+            new() { PaintKit = 44, Name = "Case Hardened" },
+            new() { PaintKit = 42, Name = "Blue Steel" },
+            new() { PaintKit = 43, Name = "Stained" },
             new() { PaintKit = 415, Name = "Doppler (Ruby)" },
+            new() { PaintKit = 417, Name = "Doppler (Sapphire)" },
+            new() { PaintKit = 418, Name = "Doppler (Black Pearl)" },
             new() { PaintKit = 568, Name = "Gamma Doppler" },
             new() { PaintKit = 413, Name = "Tiger Tooth" },
             new() { PaintKit = 414, Name = "Marble Fade" },
-            new() { PaintKit = 417, Name = "Doppler (Sapphire)" },
-            new() { PaintKit = 418, Name = "Doppler (Black Pearl)" },
             new() { PaintKit = 419, Name = "Lore" },
             new() { PaintKit = 420, Name = "Autotronic" },
+            new() { PaintKit = 580, Name = "Freehand" },
+            new() { PaintKit = 578, Name = "Bright Water" },
+            new() { PaintKit = 564, Name = "Black Laminate" },
+            new() { PaintKit = 98, Name = "Ultraviolet" },
         ];
 
         static SkinCatalog()
         {
-            foreach (int knifeId in new[] { 42, 500, 503, 505, 506, 507, 508, 509, 512, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 525, 526 })
+            foreach (int knifeId in new[] { 42, 59, 500, 503, 505, 506, 507, 508, 509, 512, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 525, 526 })
                 SkinsByWeapon[knifeId] = KnifeSkins;
         }
 
