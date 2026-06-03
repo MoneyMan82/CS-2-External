@@ -142,6 +142,13 @@ try
                 renderer.espGameMode,
                 renderer.espShowTeam);
 
+            var espPawnSet = new HashSet<IntPtr>(espEntities.Select(e => e.pawnAddress));
+            foreach (Entity entity in entities)
+            {
+                if (espPawnSet.Add(entity.pawnAddress))
+                    espEntities.Add(entity);
+            }
+
             var espPlayers = new List<EspPlayerData>(espEntities.Count);
             foreach (Entity entity in espEntities)
             {

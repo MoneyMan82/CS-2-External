@@ -151,10 +151,12 @@ namespace External_Aimbot
                 controllerAddress = controller,
                 health = health,
                 team = team,
-                origin = mem.ReadVec(pawn, Offsets.m_vOldOrigin),
+                origin = AimTarget.ReadPawnOrigin(mem, pawn),
                 view = mem.ReadVec(pawn, Offsets.m_vecViewOffset),
             };
             entity.distance = Vector3.Distance(entity.origin, localPlayer.origin);
+            if (entity.distance <= 0.1f && BoneReader.TryGetBonePosition(mem, pawn, 6, out Vector3 head))
+                entity.distance = Vector3.Distance(head, localPlayer.origin + localPlayer.view);
 
             entities.Add(entity);
         }
