@@ -4,11 +4,13 @@ namespace External_Aimbot
 {
     internal static class EntityScanner
     {
-        public static List<Entity> Scan(
-            GameMemory mem,
-            Entity localPlayer,
-            AimbotGameMode gameMode,
-            bool aimOnTeam)
+        private const int QuickIndexScanCap = 640;
+        private const int DeepIndexScanCap = 2048;
+        private const int DeepScanIntervalMs = 400;
+
+        private static long _lastDeepIndexScanMs;
+
+        public static List<Entity> ScanAllPlayers(GameMemory mem, Entity localPlayer)
         {
             var entities = new List<Entity>();
             var seenPawns = new HashSet<IntPtr>();
@@ -19,18 +21,39 @@ namespace External_Aimbot
 
             int highestEntityIndex = mem.ReadInt(entitySystem, Offsets.dwGameEntitySystem_highestEntityIndex);
 
-            ScanControllers(mem, entitySystem, localPlayer, gameMode, aimOnTeam, seenPawns, entities);
-            ScanEntityIndices(mem, entitySystem, localPlayer, highestEntityIndex, gameMode, aimOnTeam, seenPawns, entities);
+            ScanControllers(mem, entitySystem, localPlayer, seenPawns, entities);
+            ScanEntityIndices(mem, entitySystem, localPlayer, highestEntityIndex, seenPawns, entities);
 
             return entities;
+        }
+
+        public static List<Entity> Scan(
+            GameMemory mem,
+            Entity localPlayer,
+            AimbotGameMode gameMode,
+            bool aimOnTeam) =>
+            FilterByTeam(ScanAllPlayers(mem, localPlayer), localPlayer, gameMode, aimOnTeam);
+
+        public static List<Entity> FilterByTeam(
+            List<Entity> entities,
+            Entity localPlayer,
+            AimbotGameMode gameMode,
+            bool aimOnTeam)
+        {
+            var filtered = new List<Entity>(entities.Count);
+            foreach (Entity entity in entities)
+            {
+                if (PlayerValidation.PassesTeamFilter(entity.team, localPlayer, gameMode, aimOnTeam))
+                    filtered.Add(entity);
+            }
+
+            return filtered;
         }
 
         private static void ScanControllers(
             GameMemory mem,
             IntPtr entitySystem,
             Entity localPlayer,
-            AimbotGameMode gameMode,
-            bool aimOnTeam,
             HashSet<IntPtr> seenPawns,
             List<Entity> entities)
         {
@@ -47,7 +70,7 @@ namespace External_Aimbot
                 if (!TryResolvePawn(mem, entitySystem, controller, localPlayer.pawnAddress, out IntPtr pawn))
                     continue;
 
-                TryAddEntity(mem, controller, pawn, localPlayer, gameMode, aimOnTeam, seenPawns, entities);
+                TryAddEntity(mem, controller, pawn, localPlayer, seenPawns, entities);
             }
         }
 
@@ -56,12 +79,18 @@ namespace External_Aimbot
             IntPtr entitySystem,
             Entity localPlayer,
             int highestEntityIndex,
-            AimbotGameMode gameMode,
-            bool aimOnTeam,
             HashSet<IntPtr> seenPawns,
             List<Entity> entities)
         {
-            int maxIndex = Math.Clamp(highestEntityIndex, 0, 8192);
+            long now = Environment.TickCount64;
+            int scanCap = QuickIndexScanCap;
+            if (now - _lastDeepIndexScanMs >= DeepScanIntervalMs)
+            {
+                scanCap = DeepIndexScanCap;
+                _lastDeepIndexScanMs = now;
+            }
+
+            int maxIndex = Math.Clamp(highestEntityIndex, 0, scanCap);
 
             for (int i = 0; i <= maxIndex; i++)
             {
@@ -75,7 +104,7 @@ namespace External_Aimbot
                 if (!EntityList.LooksLikePlayerPawn(mem, pawn))
                     continue;
 
-                TryAddEntity(mem, IntPtr.Zero, pawn, localPlayer, gameMode, aimOnTeam, seenPawns, entities);
+                TryAddEntity(mem, IntPtr.Zero, pawn, localPlayer, seenPawns, entities);
             }
         }
 
@@ -104,8 +133,6 @@ namespace External_Aimbot
             IntPtr controller,
             IntPtr pawn,
             Entity localPlayer,
-            AimbotGameMode gameMode,
-            bool aimOnTeam,
             HashSet<IntPtr> seenPawns,
             List<Entity> entities)
         {
@@ -113,9 +140,6 @@ namespace External_Aimbot
                 return;
 
             if (!PlayerValidation.TryGetPlayerData(mem, controller, pawn, out int health, out int team))
-                return;
-
-            if (!PlayerValidation.PassesTeamFilter(team, localPlayer, gameMode, aimOnTeam))
                 return;
 
             var entity = new Entity

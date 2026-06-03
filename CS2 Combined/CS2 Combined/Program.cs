@@ -33,9 +33,17 @@ try
     Entity localPlayer = new Entity();
 
     long lastTriggerShotTicks = 0;
+    long lastAttachmentCheckMs = 0;
 
     while (true)
     {
+        long loopStartMs = Environment.TickCount64;
+        if (loopStartMs - lastAttachmentCheckMs >= 5000)
+        {
+            mem.TryRefreshAttachment();
+            lastAttachmentCheckMs = loopStartMs;
+        }
+
         IntPtr entitySystem = mem.ReadPtr(mem.Client, Offsets.dwGameEntitySystem);
 
         localPlayer.pawnAddress = LocalPlayer.ResolvePawn(mem, entitySystem, out LocalPlayerDebug localDebug);
@@ -93,14 +101,9 @@ try
 
         int localPlayerIndex = localDebug.ControllerIndex;
 
-        List<Entity> entities = EntityScanner.Scan(
-            mem,
-            localPlayer,
-            renderer.gameMode,
-            renderer.aimOnTeam
-        );
+        List<Entity> allPlayers = EntityScanner.ScanAllPlayers(mem, localPlayer);
 
-        foreach (Entity entity in entities)
+        foreach (Entity entity in allPlayers)
         {
             entity.isVisible = !renderer.visibilityCheck ||
                 Visibility.CanSeeTarget(
@@ -113,6 +116,12 @@ try
                     viewAngles,
                     renderer.mapRaytracing);
         }
+
+        List<Entity> entities = EntityScanner.FilterByTeam(
+            allPlayers,
+            localPlayer,
+            renderer.gameMode,
+            renderer.aimOnTeam);
 
         float[] viewMatrix = ViewMatrix.Read(mem);
         var overlayLines = new List<OverlayLine>(entities.Count);
@@ -128,24 +137,11 @@ try
 
         if (renderer.espEnabled)
         {
-            List<Entity> espEntities = EntityScanner.Scan(
-                mem,
+            List<Entity> espEntities = EntityScanner.FilterByTeam(
+                allPlayers,
                 localPlayer,
                 renderer.espGameMode,
                 renderer.espShowTeam);
-
-            foreach (Entity entity in espEntities)
-            {
-                entity.isVisible = Visibility.CanSeeTarget(
-                    mem,
-                    entity.pawnAddress,
-                    localPlayerIndex,
-                    playerView,
-                    entity.GetAimPosition(),
-                    entity.GetChestPosition(),
-                    viewAngles,
-                    renderer.mapRaytracing);
-            }
 
             var espPlayers = new List<EspPlayerData>(espEntities.Count);
             foreach (Entity entity in espEntities)
@@ -311,12 +307,19 @@ try
         renderer.SetAllGunsAutoDebug(allGunsAutoDebug);
 
         IntPtr localController = mem.ReadPtr(mem.Client, Offsets.dwLocalPlayerController);
+        List<Entity> radarRevealTargets = EntityScanner.FilterByTeam(
+            allPlayers,
+            localPlayer,
+            AimbotGameMode.Casual,
+            aimOnTeam: false);
+
         MiscFeatures.Process(
             mem,
             entitySystem,
             localPlayer.pawnAddress,
             localController,
             localPlayer,
+            radarRevealTargets,
             renderer.miscRadarReveal,
             renderer.miscFovChanger,
             renderer.miscFovValue,
@@ -336,24 +339,11 @@ try
 
         if (renderer.miscOverlayRadar)
         {
-            List<Entity> radarEntities = EntityScanner.Scan(
-                mem,
+            List<Entity> radarEntities = EntityScanner.FilterByTeam(
+                allPlayers,
                 localPlayer,
                 AimbotGameMode.Casual,
                 renderer.miscRadarShowTeam);
-
-            foreach (Entity entity in radarEntities)
-            {
-                entity.isVisible = Visibility.CanSeeTarget(
-                    mem,
-                    entity.pawnAddress,
-                    localPlayerIndex,
-                    playerView,
-                    entity.GetAimPosition(),
-                    entity.GetChestPosition(),
-                    viewAngles,
-                    renderer.mapRaytracing);
-            }
 
             renderer.SetRadarBlips(
                 RadarOverlay.BuildBlips(

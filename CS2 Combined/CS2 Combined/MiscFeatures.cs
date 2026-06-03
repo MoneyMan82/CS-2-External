@@ -23,6 +23,7 @@ namespace External_Aimbot
             IntPtr localPawn,
             IntPtr localController,
             Entity localPlayer,
+            IReadOnlyList<Entity> radarRevealTargets,
             bool radarReveal,
             bool fovChanger,
             int fovValue,
@@ -37,7 +38,7 @@ namespace External_Aimbot
 
             if (radarReveal)
             {
-                int revealed = RadarReveal.Apply(mem, localPlayer, entitySystem);
+                int revealed = RadarReveal.Apply(mem, radarRevealTargets);
                 debug = debug with { RadarRevealedCount = revealed };
             }
 
@@ -91,14 +92,8 @@ namespace External_Aimbot
 
         private static class RadarReveal
         {
-            public static int Apply(GameMemory mem, Entity localPlayer, IntPtr entitySystem)
+            public static int Apply(GameMemory mem, IReadOnlyList<Entity> enemies)
             {
-                List<Entity> enemies = EntityScanner.Scan(
-                    mem,
-                    localPlayer,
-                    AimbotGameMode.Casual,
-                    aimOnTeam: false);
-
                 int count = 0;
                 foreach (Entity entity in enemies)
                 {
@@ -119,11 +114,21 @@ namespace External_Aimbot
 
         private static class BombTracker
         {
+            private const int BombScanCap = 640;
+            private const int BombScanIntervalMs = 100;
+            private static long _lastBombScanMs;
+            private static MiscDebug _cachedBombState;
+
             public static MiscDebug Read(GameMemory mem, IntPtr entitySystem)
             {
+                long now = Environment.TickCount64;
+                if (now - _lastBombScanMs < BombScanIntervalMs)
+                    return _cachedBombState;
+
+                _lastBombScanMs = now;
                 float curTime = ReadCurTime(mem);
                 int highest = mem.ReadInt(entitySystem, Offsets.dwGameEntitySystem_highestEntityIndex);
-                int maxIndex = Math.Clamp(highest, 0, 8192);
+                int maxIndex = Math.Clamp(highest, 0, BombScanCap);
 
                 for (int i = 0; i <= maxIndex; i++)
                 {
@@ -148,7 +153,7 @@ namespace External_Aimbot
                         defuseLeft = Math.Max(0f, defuseEnd - curTime);
                     }
 
-                    return new MiscDebug
+                    _cachedBombState = new MiscDebug
                     {
                         BombPlanted = true,
                         BombTimeLeft = timeLeft,
@@ -156,9 +161,11 @@ namespace External_Aimbot
                         BombBeingDefused = defusing,
                         DefuseTimeLeft = defuseLeft,
                     };
+                    return _cachedBombState;
                 }
 
-                return default;
+                _cachedBombState = default;
+                return _cachedBombState;
             }
         }
 

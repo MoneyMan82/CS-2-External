@@ -11,24 +11,53 @@ namespace External_Aimbot
         private const uint ProcessQueryInformation = 0x0400;
 
         private readonly IntPtr _handle;
+        private Process? _process;
 
-        public IntPtr Client { get; }
-        public IntPtr Engine { get; }
+        public IntPtr Client { get; private set; }
+        public IntPtr Engine { get; private set; }
 
         public GameMemory()
         {
-            Process process = Process.GetProcessesByName("cs2").FirstOrDefault()
+            _process = Process.GetProcessesByName("cs2").FirstOrDefault()
                 ?? throw new InvalidOperationException("cs2.exe is not running.");
 
-            _handle = OpenProcess(ProcessVmRead | ProcessVmWrite | ProcessQueryInformation, false, process.Id);
+            _handle = OpenProcess(ProcessVmRead | ProcessVmWrite | ProcessQueryInformation, false, _process.Id);
             if (_handle == IntPtr.Zero)
                 throw new InvalidOperationException("Failed to open cs2 process. Try running as administrator.");
 
-            Client = GetModuleBase(process, "client.dll");
-            Engine = GetModuleBase(process, "engine2.dll");
+            RefreshModuleBases();
 
             if (Client == IntPtr.Zero)
                 throw new InvalidOperationException("client.dll not found.");
+        }
+
+        public bool IsAttached =>
+            _process != null && !_process.HasExited && _handle != IntPtr.Zero;
+
+        public bool TryRefreshAttachment()
+        {
+            if (_process != null && !_process.HasExited && Client != IntPtr.Zero)
+            {
+                IntPtr entitySystem = ReadPtr(Client, Offsets.dwGameEntitySystem);
+                if (entitySystem != IntPtr.Zero)
+                    return true;
+            }
+
+            _process = Process.GetProcessesByName("cs2").FirstOrDefault();
+            if (_process == null || _process.HasExited)
+                return false;
+
+            RefreshModuleBases();
+            return Client != IntPtr.Zero;
+        }
+
+        private void RefreshModuleBases()
+        {
+            if (_process == null || _process.HasExited)
+                return;
+
+            Client = GetModuleBase(_process, "client.dll");
+            Engine = GetModuleBase(_process, "engine2.dll");
         }
 
         public IntPtr ReadPtr(IntPtr address)
