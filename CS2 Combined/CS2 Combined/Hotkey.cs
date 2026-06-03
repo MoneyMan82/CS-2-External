@@ -1,3 +1,4 @@
+using ImGuiNET;
 using System.Runtime.InteropServices;
 
 namespace External_Aimbot
@@ -30,16 +31,20 @@ namespace External_Aimbot
 
         public static void DrawSelector(string label, ref Hotkey hotkey)
         {
-            if (ImGuiNET.ImGui.BeginCombo(label, Label(hotkey)))
+            ImGui.PushItemWidth(160f);
+            if (ImGui.BeginCombo(label, Label(hotkey)))
             {
                 foreach (Hotkey option in Enum.GetValues<Hotkey>())
                 {
-                    if (ImGuiNET.ImGui.Selectable(Label(option), hotkey == option))
+                    bool selected = hotkey == option;
+                    if (ImGui.Selectable(Label(option), selected))
                         hotkey = option;
                 }
 
-                ImGuiNET.ImGui.EndCombo();
+                ImGui.EndCombo();
             }
+
+            ImGui.PopItemWidth();
         }
 
         [DllImport("user32.dll")]

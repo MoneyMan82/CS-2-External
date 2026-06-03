@@ -119,17 +119,23 @@ namespace External_Aimbot
             SyncOverlayToGameWindow();
             KeepOverlayOnTop();
 
-            ImGui.Begin("CS2 Combined", ImGuiWindowFlags.AlwaysAutoResize);
+            UiTheme.Apply();
+            ImGui.SetNextWindowSize(new Vector2(480f, 0f), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSizeConstraints(new Vector2(420f, 320f), new Vector2(560f, 900f));
 
-            if (ImGui.BeginTabBar("MainTabs"))
+            ImGui.Begin("CS2 Combined", ImGuiWindowFlags.NoCollapse);
+
+            UiTheme.DrawMenuHeader();
+
+            if (ImGui.BeginTabBar("MainTabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton))
             {
-                if (ImGui.BeginTabItem("Aimbot"))
+                if (ImGui.BeginTabItem("Aim"))
                 {
                     DrawAimbotTab();
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Trigger Bot"))
+                if (ImGui.BeginTabItem("Trigger"))
                 {
                     DrawTriggerBotTab();
                     ImGui.EndTabItem();
@@ -141,7 +147,7 @@ namespace External_Aimbot
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Auto Bhop"))
+                if (ImGui.BeginTabItem("Bhop"))
                 {
                     DrawBhopTab();
                     ImGui.EndTabItem();
@@ -153,7 +159,7 @@ namespace External_Aimbot
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Skin Changer"))
+                if (ImGui.BeginTabItem("Skins"))
                 {
                     DrawSkinChangerTab();
                     ImGui.EndTabItem();
@@ -175,27 +181,21 @@ namespace External_Aimbot
 
         private void DrawEspTab()
         {
-            ImGui.Checkbox("enable ESP", ref espEnabled);
-            ImGui.Checkbox("box ESP", ref espBox);
-            ImGui.Checkbox("bone ESP", ref espBones);
-            ImGui.Checkbox("name ESP", ref espName);
-            ImGui.Checkbox("health ESP", ref espHealth);
-            ImGui.Checkbox("weapon ESP", ref espWeapon);
-            ImGui.Checkbox("distance ESP", ref espDistance);
-            ImGui.Checkbox("snaplines", ref espSnaplines);
-            ImGui.Checkbox("head dot", ref espHeadDot);
-            ImGui.Checkbox("show armor", ref espArmor);
-            ImGui.Checkbox("color by visibility", ref espColorByVisibility);
+            UiTheme.Section("Display");
+            ImGui.Checkbox("Enable ESP", ref espEnabled);
+            ImGui.Checkbox("Box", ref espBox);
+            ImGui.Checkbox("Bones", ref espBones);
+            ImGui.Checkbox("Name", ref espName);
+            ImGui.Checkbox("Health", ref espHealth);
+            ImGui.Checkbox("Weapon", ref espWeapon);
+            ImGui.Checkbox("Distance", ref espDistance);
+            ImGui.Checkbox("Snaplines", ref espSnaplines);
+            ImGui.Checkbox("Head dot", ref espHeadDot);
+            ImGui.Checkbox("Armor", ref espArmor);
+            ImGui.Checkbox("Color by visibility", ref espColorByVisibility);
 
-            ImGui.Text("Game mode");
-            if (ImGui.RadioButton("Casual##esp", espGameMode == AimbotGameMode.Casual))
-                espGameMode = AimbotGameMode.Casual;
-            ImGui.SameLine();
-            if (ImGui.RadioButton("Deathmatch##esp", espGameMode == AimbotGameMode.Deathmatch))
-                espGameMode = AimbotGameMode.Deathmatch;
-
-            if (espGameMode == AimbotGameMode.Casual)
-                ImGui.Checkbox("show teammates", ref espShowTeam);
+            UiTheme.Section("Filters");
+            UiTheme.GameModeRadio("##esp", ref espGameMode, showTeamOption: true, ref espShowTeam);
         }
 
         private void DrawEsp()
@@ -233,169 +233,152 @@ namespace External_Aimbot
 
         private void DrawAimbotTab()
         {
-            ImGui.Checkbox("aimbot", ref aimbot);
-            ImGui.Checkbox("recoil control", ref recoilControl);
+            UiTheme.Section("Core");
+            ImGui.Checkbox("Aimbot", ref aimbot);
+            ImGui.Checkbox("Recoil control", ref recoilControl);
             if (recoilControl)
                 ImGui.SliderFloat("Recoil strength", ref recoilStrength, 0.5f, 2f);
-            ImGui.Checkbox("recoil predictor", ref recoilPredictor);
+            ImGui.Checkbox("Recoil predictor", ref recoilPredictor);
 
             var weapon = CurrentWeapon;
             if (weapon.IsValid)
             {
                 string preset = weapon.HasRecoilPreset ? "preset loaded" : "generic fallback";
-                ImGui.Text($"Weapon: {weapon.Name}  |  {weapon.FireModeLabel}  |  Shots: {weapon.ShotsFired}  |  {preset}");
+                UiTheme.StatusRow("Weapon", weapon.Name, UiTheme.TextPrimary);
+                UiTheme.StatusRow("Mode", $"{weapon.FireModeLabel} · {weapon.ShotsFired} shots", UiTheme.TextInfo);
+                UiTheme.HintMuted(preset);
             }
             else
             {
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "Weapon: none");
+                UiTheme.StatusRow("Weapon", "none", UiTheme.TextMuted);
             }
 
-            ImGui.Checkbox("visibility check", ref visibilityCheck);
+            UiTheme.Section("Targeting");
+            ImGui.Checkbox("Visibility check", ref visibilityCheck);
             if (visibilityCheck)
             {
-                ImGui.Checkbox("map raytracing", ref mapRaytracing);
+                ImGui.Checkbox("Map raytracing", ref mapRaytracing);
                 DrawMapRaytracingStatus();
             }
-            ImGui.Checkbox("target lines", ref drawTargetLines);
+            ImGui.Checkbox("Target lines", ref drawTargetLines);
+            UiTheme.GameModeRadio("##aim", ref gameMode, showTeamOption: true, ref aimOnTeam);
 
-            ImGui.Text("Game mode");
-            if (ImGui.RadioButton("Casual", gameMode == AimbotGameMode.Casual))
-                gameMode = AimbotGameMode.Casual;
-            ImGui.SameLine();
-            if (ImGui.RadioButton("Deathmatch", gameMode == AimbotGameMode.Deathmatch))
-                gameMode = AimbotGameMode.Deathmatch;
-
-            if (gameMode == AimbotGameMode.Casual)
-                ImGui.Checkbox("aim on teammates, aswell", ref aimOnTeam);
-
+            UiTheme.Section("Aim settings");
             ImGui.SliderFloat("Aim FOV", ref fov, 1f, 90f);
-            ImGui.Checkbox("show FOV circle", ref showFovCircle);
-            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Circle = lock range. Lower FOV = tighter aim.");
+            ImGui.Checkbox("Show FOV circle", ref showFovCircle);
+            UiTheme.HintMuted("Circle size matches lock range. Lower FOV = tighter aim.");
             ImGui.SliderFloat("Smoothness", ref smoothness, 1f, 20f);
             HotkeyInput.DrawSelector("Aim hotkey", ref aimbotHotkey);
-            ImGui.Text($"Hold {HotkeyInput.Label(aimbotHotkey)} to aim");
+            UiTheme.HintMuted($"Hold {HotkeyInput.Label(aimbotHotkey)} to aim");
         }
 
         private void DrawTriggerBotTab()
         {
-            ImGui.Checkbox("trigger bot", ref triggerBot);
+            UiTheme.Section("Core");
+            ImGui.Checkbox("Trigger bot", ref triggerBot);
+            UiTheme.GameModeRadio("##trigger", ref triggerGameMode, showTeamOption: false, ref aimOnTeam);
 
-            ImGui.Text("Game mode");
-            if (ImGui.RadioButton("Casual##trigger", triggerGameMode == AimbotGameMode.Casual))
-                triggerGameMode = AimbotGameMode.Casual;
-            ImGui.SameLine();
-            if (ImGui.RadioButton("Deathmatch##trigger", triggerGameMode == AimbotGameMode.Deathmatch))
-                triggerGameMode = AimbotGameMode.Deathmatch;
-
+            UiTheme.Section("Timing");
             ImGui.SliderInt("Click delay (ms)", ref triggerClickDelayMs, 1, 50);
             ImGui.SliderInt("Shot cooldown (ms)", ref triggerCooldownMs, 10, 500);
             HotkeyInput.DrawSelector("Trigger hotkey", ref triggerHotkey);
-            ImGui.Text($"Hold {HotkeyInput.Label(triggerHotkey)} to trigger");
+            UiTheme.HintMuted($"Hold {HotkeyInput.Label(triggerHotkey)} while aiming at a target");
 
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Text("Status");
-
+            UiTheme.BeginStatusPanel();
             var debug = TriggerDebug;
-            ImGui.Text($"Hotkey: {(debug.HotkeyHeld ? "HELD" : "not held")}");
-            ImGui.Text($"Crosshair entity ID: {debug.EntityId}");
+            UiTheme.StatusRow("Hotkey", debug.HotkeyHeld ? "HELD" : "not held",
+                debug.HotkeyHeld ? UiTheme.TextSuccess : UiTheme.TextMuted);
+            UiTheme.StatusRow("Crosshair ID", debug.EntityId.ToString(), UiTheme.TextPrimary);
             if (debug.EntityId > 0)
             {
-                ImGui.Text($"Target team: {debug.TargetTeam}, your team: {debug.LocalTeam}");
-                ImGui.Text($"Target HP: {debug.TargetHealth}");
+                UiTheme.StatusRow("Teams", $"{debug.TargetTeam} vs {debug.LocalTeam}", UiTheme.TextInfo);
+                UiTheme.StatusRow("Target HP", debug.TargetHealth.ToString(), UiTheme.TextPrimary);
             }
 
-            ImGui.TextColored(
-                debug.Status == "Shot fired"
-                    ? new Vector4(0.2f, 1f, 0.2f, 1f)
-                    : new Vector4(0.8f, 0.8f, 0.8f, 1f),
-                debug.Status
-            );
+            Vector4 statusColor = debug.Status == "Shot fired" ? UiTheme.TextSuccess : UiTheme.TextMuted;
+            UiTheme.StatusRow("State", debug.Status, statusColor);
+            UiTheme.EndStatusPanel();
         }
 
         public void SetTriggerDebug(TriggerBotDebug debug) => TriggerDebug = debug;
 
         private void DrawBhopTab()
         {
-            ImGui.Checkbox("auto bhop", ref bhopEnabled);
-            ImGui.Checkbox("hold Space to bhop", ref bhopHoldSpace);
-            ImGui.Checkbox("subtick bhop (fastest)", ref bhopSubtick);
+            UiTheme.Section("Core");
+            ImGui.Checkbox("Auto bhop", ref bhopEnabled);
+            ImGui.Checkbox("Hold Space to bhop", ref bhopHoldSpace);
+            ImGui.Checkbox("Subtick bhop (fastest)", ref bhopSubtick);
 
             if (!bhopHoldSpace)
-                ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1f), "Jumps automatically when enabled");
+                UiTheme.DrawFooterWarning("Jumps automatically when enabled", UiTheme.TextWarning);
+            else if (bhopSubtick)
+                UiTheme.HintMuted("Fast subtick pulses with 1 ms update rate");
 
-            if (bhopSubtick)
-                ImGui.TextColored(new Vector4(0.4f, 0.85f, 1f, 1f), "Fast subtick pulses + 1ms update rate");
-
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Text("Status");
-
+            UiTheme.BeginStatusPanel();
             var debug = BhopState;
-            ImGui.Text($"Space: {(debug.SpaceHeld ? "HELD" : "not held")}");
-            ImGui.Text($"On ground: {(debug.OnGround ? "yes" : "no")}");
-            ImGui.Text($"Flags: 0x{debug.Flags:X}");
+            UiTheme.StatusRow("Space", debug.SpaceHeld ? "HELD" : "not held",
+                debug.SpaceHeld ? UiTheme.TextSuccess : UiTheme.TextMuted);
+            UiTheme.StatusRow("Ground", debug.OnGround ? "yes" : "no",
+                debug.OnGround ? UiTheme.TextSuccess : UiTheme.TextInfo);
+            UiTheme.StatusRow("Flags", $"0x{debug.Flags:X}", UiTheme.TextMuted);
 
-            ImGui.TextColored(
-                debug.Status is "Jumping" or "Jumping (subtick)" or "In air"
-                    ? new Vector4(0.2f, 1f, 0.2f, 1f)
-                    : new Vector4(0.8f, 0.8f, 0.8f, 1f),
-                debug.Status
-            );
+            Vector4 statusColor = debug.Status is "Jumping" or "Jumping (subtick)" or "Jumping (fast subtick)" or "In air"
+                ? UiTheme.TextSuccess
+                : UiTheme.TextMuted;
+            UiTheme.StatusRow("State", debug.Status, statusColor);
+            UiTheme.EndStatusPanel();
         }
 
         public void SetBhopDebug(BhopDebug debug) => BhopState = debug;
 
         private void DrawMiscTab()
         {
-            ImGui.Text("Visual");
-            ImGui.Checkbox("anti flash", ref antiFlashEnabled);
+            UiTheme.Section("Visual");
+            ImGui.Checkbox("Anti flash", ref antiFlashEnabled);
             ImGui.Checkbox("FOV changer", ref miscFovChanger);
             if (miscFovChanger)
                 ImGui.SliderInt("Game FOV", ref miscFovValue, 60, 140);
 
-            ImGui.Spacing();
-            ImGui.Text("Combat");
-            ImGui.Checkbox("no recoil", ref miscNoRecoilEnabled);
-            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Removes visual recoil while shooting (no aimbot needed)");
-            ImGui.Checkbox("all guns auto", ref miscAllGunsAutoEnabled);
-            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Hold LMB - only semi-auto guns (Deagle, AWP, pistols) fire repeatedly. Full-auto guns are unchanged.");
+            UiTheme.Section("Combat");
+            ImGui.Checkbox("No recoil", ref miscNoRecoilEnabled);
+            UiTheme.HintMuted("Removes visual recoil while shooting (no aimbot needed)");
+            ImGui.Checkbox("All guns auto", ref miscAllGunsAutoEnabled);
+            UiTheme.HintMuted("Hold LMB — semi-auto guns fire repeatedly. Full-auto guns unchanged.");
 
-            ImGui.Spacing();
-            ImGui.Text("Radar");
-            ImGui.Checkbox("radar reveal", ref miscRadarReveal);
-            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f), "Shows enemies on the in-game minimap");
-            ImGui.Checkbox("overlay radar", ref miscOverlayRadar);
+            UiTheme.Section("Radar");
+            ImGui.Checkbox("Radar reveal", ref miscRadarReveal);
+            UiTheme.HintMuted("Shows enemies on the in-game minimap");
+            ImGui.Checkbox("Overlay radar", ref miscOverlayRadar);
             if (miscOverlayRadar)
             {
-                ImGui.Checkbox("show teammates##radar", ref miscRadarShowTeam);
-                ImGui.SliderFloat("radar size", ref miscRadarSize, 80f, 220f);
-                ImGui.SliderFloat("radar range", ref miscRadarRange, 1000f, 5000f);
+                ImGui.Checkbox("Show teammates##radar", ref miscRadarShowTeam);
+                ImGui.SliderFloat("Radar size", ref miscRadarSize, 80f, 220f);
+                ImGui.SliderFloat("Radar range", ref miscRadarRange, 1000f, 5000f);
             }
 
-            ImGui.Spacing();
-            ImGui.Text("Info");
-            ImGui.Checkbox("bomb timer", ref miscBombTimer);
-            ImGui.Checkbox("spectator list", ref miscSpectatorList);
+            UiTheme.Section("Info");
+            ImGui.Checkbox("Bomb timer", ref miscBombTimer);
+            ImGui.Checkbox("Spectator list", ref miscSpectatorList);
 
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Text("Status");
-
+            UiTheme.BeginStatusPanel();
             var flash = AntiFlashState;
-            ImGui.Text($"Flash alpha: {flash.FlashAlpha:F0}  |  {flash.Status}");
+            UiTheme.StatusRow("Flash", $"{flash.FlashAlpha:F0}", UiTheme.TextPrimary);
+            UiTheme.StatusRow("Anti-flash", flash.Status, UiTheme.TextMuted);
 
             if (miscNoRecoilEnabled)
             {
                 var recoil = NoRecoilState;
-                ImGui.Text($"No recoil: {recoil.Status}");
+                UiTheme.StatusRow("No recoil", recoil.Status, UiTheme.TextInfo);
             }
 
             if (miscAllGunsAutoEnabled)
             {
                 var auto = AllGunsAutoState;
-                ImGui.Text($"All guns auto: {auto.Status} | {auto.Phase} | {auto.ActiveWeapon}");
-                ImGui.Text($"  attack={(auto.AttackHeld ? "yes" : "no")}  semi={(auto.IsSemiAuto ? "yes" : "no")}  shots={auto.ShotCount}");
+                UiTheme.StatusRow("Auto", auto.Status, UiTheme.TextPrimary);
+                UiTheme.StatusRow("Phase", auto.Phase, UiTheme.TextInfo);
+                UiTheme.StatusRow("Weapon", auto.ActiveWeapon, UiTheme.TextMuted);
+                UiTheme.StatusRow("Shots", auto.ShotCount.ToString(),
+                    auto.ShotCount > 0 ? UiTheme.TextSuccess : UiTheme.TextMuted);
             }
 
             var misc = MiscState;
@@ -403,38 +386,37 @@ namespace External_Aimbot
             {
                 if (misc.BombPlanted)
                 {
-                    ImGui.TextColored(new Vector4(1f, 0.45f, 0.2f, 1f),
-                        $"Bomb site {misc.BombSite}: {misc.BombTimeLeft:0.0}s");
+                    UiTheme.StatusRow("Bomb", $"Site {misc.BombSite} · {misc.BombTimeLeft:0.0}s", UiTheme.TextWarning);
                     if (misc.BombBeingDefused)
-                        ImGui.TextColored(new Vector4(0.2f, 1f, 0.35f, 1f),
-                            $"Defusing: {misc.DefuseTimeLeft:0.0}s");
+                        UiTheme.StatusRow("Defuse", $"{misc.DefuseTimeLeft:0.0}s", UiTheme.TextSuccess);
                 }
                 else
                 {
-                    ImGui.Text("Bomb: not planted");
+                    UiTheme.StatusRow("Bomb", "not planted", UiTheme.TextMuted);
                 }
             }
 
             if (miscRadarReveal)
-                ImGui.Text($"Radar reveal: {misc.RadarRevealedCount} spotted this tick");
+                UiTheme.StatusRow("Radar reveal", $"{misc.RadarRevealedCount} spotted", UiTheme.TextInfo);
 
             if (miscFovChanger && misc.AppliedFov > 0)
-                ImGui.Text($"FOV: {misc.AppliedFov}");
+                UiTheme.StatusRow("FOV", misc.AppliedFov.ToString(), UiTheme.TextPrimary);
 
             if (miscSpectatorList)
             {
                 if (misc.SpectatorCount > 0 && misc.Spectators != null)
                 {
-                    ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1f),
-                        $"Spectators ({misc.SpectatorCount}):");
+                    UiTheme.StatusRow("Spectators", misc.SpectatorCount.ToString(), UiTheme.TextWarning);
                     foreach (string name in misc.Spectators)
                         ImGui.BulletText(name);
                 }
                 else
                 {
-                    ImGui.Text("Spectators: none");
+                    UiTheme.StatusRow("Spectators", "none", UiTheme.TextMuted);
                 }
             }
+
+            UiTheme.EndStatusPanel();
         }
 
         public void SetAntiFlashDebug(AntiFlashDebug debug) => AntiFlashState = debug;
@@ -451,13 +433,11 @@ namespace External_Aimbot
 
         private void DrawSkinChangerTab()
         {
-            ImGui.Checkbox("enable skin changer", ref skinChangerEnabled);
-            ImGui.TextColored(new Vector4(0.75f, 0.75f, 0.75f, 1f),
-                "Client-side only. Applies to weapons in your current loadout.");
+            UiTheme.Section("Core");
+            ImGui.Checkbox("Enable skin changer", ref skinChangerEnabled);
+            UiTheme.HintMuted("Client-side only. Applies to weapons in your current loadout.");
 
-            ImGui.Spacing();
-            ImGui.Text("Configure weapon skin");
-
+            UiTheme.Section("Editor");
             string weaponLabel = WeaponCatalog.GetName(skinEditorWeaponDefIndex);
             if (ImGui.BeginCombo("Weapon", weaponLabel))
             {
@@ -493,7 +473,8 @@ namespace External_Aimbot
             if (skinEditorStatTrak)
                 ImGui.InputInt("StatTrak value", ref skinEditorStatTrakValue);
 
-            if (ImGui.Button("Save for weapon"))
+            ImGui.Spacing();
+            if (ImGui.Button("Save for weapon", new Vector2(140f, 0f)))
             {
                 _skinConfigs[skinEditorWeaponDefIndex] = new SkinConfig
                 {
@@ -506,44 +487,42 @@ namespace External_Aimbot
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("Clear saved"))
+            if (ImGui.Button("Clear saved", new Vector2(100f, 0f)))
                 _skinConfigs.Remove(skinEditorWeaponDefIndex);
 
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Text("Saved skins");
+            UiTheme.Section("Saved");
             if (_skinConfigs.Count == 0)
             {
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "None saved yet");
+                UiTheme.HintMuted("None saved yet");
             }
             else
             {
                 foreach (var entry in _skinConfigs)
                 {
                     ImGui.BulletText(
-                        $"{WeaponCatalog.GetName(entry.Key)} -> kit {entry.Value.PaintKit}, wear {entry.Value.Wear:0.###}");
+                        $"{WeaponCatalog.GetName(entry.Key)} → kit {entry.Value.PaintKit}, wear {entry.Value.Wear:0.###}");
                 }
             }
 
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Text("Loadout");
-
+            UiTheme.BeginStatusPanel();
             var debug = SkinChangerState;
-            ImGui.Text($"Status: {debug.Status}");
+            UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
 
             if (debug.Loadout == null || debug.Loadout.Length == 0)
             {
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "Join a match to detect your weapons");
+                UiTheme.HintMuted("Join a match to detect your weapons");
             }
             else
             {
                 foreach (LoadoutWeaponInfo weapon in debug.Loadout)
                 {
                     string tag = weapon.Configured ? "configured" : "default";
-                    ImGui.BulletText($"{weapon.Name} (kit {weapon.CurrentPaintKit}) - {tag}");
+                    Vector4 color = weapon.Configured ? UiTheme.TextSuccess : UiTheme.TextMuted;
+                    ImGui.TextColored(color, $"• {weapon.Name} (kit {weapon.CurrentPaintKit}) — {tag}");
                 }
             }
+
+            UiTheme.EndStatusPanel();
         }
 
         public void SetRadarBlips(IReadOnlyList<RadarBlip> blips)
@@ -576,33 +555,33 @@ namespace External_Aimbot
             string map = MapCollision.CurrentMap;
             if (string.IsNullOrEmpty(map))
             {
-                ImGui.TextColored(new Vector4(1f, 0.55f, 0.2f, 1f), "Map: unknown (not in a match yet)");
+                UiTheme.StatusRow("Map", "unknown", UiTheme.TextWarning);
                 return;
             }
 
+            UiTheme.StatusRow("Map", map, UiTheme.TextPrimary);
+
             if (MapCollision.IsLoading)
             {
-                ImGui.TextColored(new Vector4(1f, 0.85f, 0.2f, 1f), $"Map: {map} | Mesh: loading...");
+                UiTheme.StatusRow("Mesh", "loading...", UiTheme.TextWarning);
                 return;
             }
 
             if (MapCollision.IsLoaded)
             {
-                ImGui.TextColored(
-                    new Vector4(0.2f, 1f, 0.35f, 1f),
-                    $"Map: {map} | Mesh: loaded ({MapCollision.TriangleCount:N0} tris)");
+                UiTheme.StatusRow("Mesh", $"loaded ({MapCollision.TriangleCount:N0} tris)", UiTheme.TextSuccess);
                 return;
             }
 
             if (!mapRaytracing)
             {
-                ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1f), $"Map: {map} | Using spotted fallback (less accurate)");
+                UiTheme.StatusRow("Mesh", "spotted fallback", UiTheme.TextWarning);
                 return;
             }
 
-            ImGui.TextColored(new Vector4(1f, 0.35f, 0.35f, 1f), $"Map: {map} | Mesh: MISSING");
-            ImGui.TextWrapped($"Put maps\\{map}.tri next to the exe. Run External Aimbot\\tools\\extract-maps.ps1 to generate meshes.");
-            ImGui.TextWrapped("Wall check is OFF until mesh loads — lines stay red and aimbot won't lock through walls.");
+            UiTheme.StatusRow("Mesh", "MISSING", UiTheme.TextDanger);
+            UiTheme.HintMuted($"Add maps\\{map}.tri next to the exe.");
+            UiTheme.HintMuted("Wall check is off until mesh loads.");
         }
 
         private void DrawRecoilPrediction()
@@ -695,16 +674,12 @@ namespace External_Aimbot
             IntPtr gameWindow = FindGameWindow();
             if (gameWindow == IntPtr.Zero)
             {
-                ImGui.Spacing();
-                ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), "CS2 window not found.");
+                UiTheme.DrawFooterWarning("CS2 window not found.", UiTheme.TextDanger);
                 return;
             }
 
             if (IsExclusiveFullscreen(gameWindow))
-            {
-                ImGui.Spacing();
-                ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), "Use Borderless Windowed in CS2 video settings.");
-            }
+                UiTheme.DrawFooterWarning("Use Borderless Windowed in CS2 video settings.", UiTheme.TextDanger);
         }
 
         private void SyncOverlayToGameWindow()
