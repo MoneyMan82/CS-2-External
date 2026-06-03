@@ -70,6 +70,7 @@
         public static int m_bNeedsBoltAction = 0x1CCD;
         public static int m_iIDEntIndex = 0x33FC;
         public static int m_pGameSceneNode = 0x330;
+        public static int m_vecAbsOrigin = 0xC8;
         public static int m_modelState = 0x150;
         public static int m_boneArray = 0x80;
         public static int m_boneArrayLegacy = 0x210;

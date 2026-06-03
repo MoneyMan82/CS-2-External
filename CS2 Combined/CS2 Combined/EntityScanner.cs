@@ -21,7 +21,8 @@ namespace External_Aimbot
 
             int highestEntityIndex = mem.ReadInt(entitySystem, Offsets.dwGameEntitySystem_highestEntityIndex);
 
-            ScanControllers(mem, entitySystem, localPlayer, seenPawns, entities);
+            ScanControllerSlots(mem, entitySystem, localPlayer, seenPawns, entities);
+            ScanIndexedControllers(mem, entitySystem, localPlayer, seenPawns, entities);
             ScanEntityIndices(mem, entitySystem, localPlayer, highestEntityIndex, seenPawns, entities);
 
             return entities;
@@ -50,7 +51,7 @@ namespace External_Aimbot
             return filtered;
         }
 
-        private static void ScanControllers(
+        private static void ScanControllerSlots(
             GameMemory mem,
             IntPtr entitySystem,
             Entity localPlayer,
@@ -67,10 +68,24 @@ namespace External_Aimbot
                 if (controller == IntPtr.Zero)
                     continue;
 
-                if (!TryResolvePawn(mem, entitySystem, controller, localPlayer.pawnAddress, out IntPtr pawn))
+                TryAddFromController(mem, entitySystem, controller, localPlayer, seenPawns, entities);
+            }
+        }
+
+        private static void ScanIndexedControllers(
+            GameMemory mem,
+            IntPtr entitySystem,
+            Entity localPlayer,
+            HashSet<IntPtr> seenPawns,
+            List<Entity> entities)
+        {
+            for (int i = 1; i <= 64; i++)
+            {
+                IntPtr controller = EntityList.GetEntityFromIndex(mem, entitySystem, i);
+                if (!EntityList.LooksLikePlayerController(mem, controller))
                     continue;
 
-                TryAddEntity(mem, controller, pawn, localPlayer, seenPawns, entities);
+                TryAddFromController(mem, entitySystem, controller, localPlayer, seenPawns, entities);
             }
         }
 
@@ -108,24 +123,33 @@ namespace External_Aimbot
             }
         }
 
-        private static bool TryResolvePawn(
+        private static void TryAddFromController(
             GameMemory mem,
             IntPtr entitySystem,
             IntPtr controller,
-            IntPtr localPawn,
-            out IntPtr pawn)
+            Entity localPlayer,
+            HashSet<IntPtr> seenPawns,
+            List<Entity> entities)
         {
-            pawn = IntPtr.Zero;
+            foreach (int handle in GetPawnHandles(mem, controller))
+            {
+                IntPtr pawn = EntityList.ResolveEntityIndex(mem, entitySystem, handle);
+                if (pawn == IntPtr.Zero || pawn == localPlayer.pawnAddress)
+                    continue;
 
-            int pawnHandle = mem.ReadInt(controller, Offsets.m_hPlayerPawn);
-            if (pawnHandle == 0)
-                pawnHandle = mem.ReadInt(controller, Offsets.m_hPawn);
+                TryAddEntity(mem, controller, pawn, localPlayer, seenPawns, entities);
+            }
+        }
 
-            if (pawnHandle == 0)
-                return false;
+        private static IEnumerable<int> GetPawnHandles(GameMemory mem, IntPtr controller)
+        {
+            int playerPawn = mem.ReadInt(controller, Offsets.m_hPlayerPawn);
+            if (playerPawn > 0)
+                yield return playerPawn;
 
-            pawn = EntityList.ResolveHandle(mem, entitySystem, pawnHandle);
-            return pawn != IntPtr.Zero && pawn != localPawn;
+            int pawn = mem.ReadInt(controller, Offsets.m_hPawn);
+            if (pawn > 0 && pawn != playerPawn)
+                yield return pawn;
         }
 
         private static void TryAddEntity(
@@ -148,7 +172,7 @@ namespace External_Aimbot
                 controllerAddress = controller,
                 health = health,
                 team = team,
-                origin = mem.ReadVec(pawn, Offsets.m_vOldOrigin),
+                origin = PlayerValidation.ReadPawnOrigin(mem, pawn),
                 view = mem.ReadVec(pawn, Offsets.m_vecViewOffset),
             };
             entity.distance = Vector3.Distance(entity.origin, localPlayer.origin);

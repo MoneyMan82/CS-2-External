@@ -20,16 +20,29 @@ namespace External_Aimbot
             return ReadEntityAtSlot(mem, listEntry, index & 0x1FF);
         }
 
-        public static IntPtr ResolveHandle(GameMemory mem, IntPtr entitySystem, int handle)
+        public static IntPtr ResolveHandle(GameMemory mem, IntPtr entitySystem, int handle) =>
+            ResolveEntityIndex(mem, entitySystem, handle);
+
+        public static IntPtr ResolveEntityIndex(GameMemory mem, IntPtr entitySystem, int index)
         {
-            if (entitySystem == IntPtr.Zero || handle == 0)
+            if (entitySystem == IntPtr.Zero || index <= 0)
                 return IntPtr.Zero;
 
-            IntPtr listEntry = GetListEntry(mem, entitySystem, handle);
-            if (listEntry == IntPtr.Zero)
-                return IntPtr.Zero;
+            foreach (int stride in new[] { EntitySlotStride, LegacyEntitySlotStride })
+            {
+                foreach (int idx in new[] { index & 0x7FFF, index })
+                {
+                    IntPtr listEntry = mem.ReadPtr(entitySystem, 0x8 * (idx >> 9) + 0x10);
+                    if (!IsValidUserAddress(listEntry))
+                        continue;
 
-            return ReadPlayerPawnAtSlot(mem, listEntry, handle & 0x1FF);
+                    IntPtr entity = mem.ReadPtr(listEntry, stride * (idx & 0x1FF));
+                    if (IsValidUserAddress(entity))
+                        return entity;
+                }
+            }
+
+            return IntPtr.Zero;
         }
 
         public static IntPtr ReadControllerAtSlot(GameMemory mem, IntPtr listEntry, int slot)
@@ -42,20 +55,46 @@ namespace External_Aimbot
             return IsValidUserAddress(controller) ? controller : IntPtr.Zero;
         }
 
-        private static IntPtr ReadPlayerPawnAtSlot(GameMemory mem, IntPtr listEntry, int slot)
+        public static bool LooksLikePlayerController(GameMemory mem, IntPtr entity)
         {
-            foreach (int stride in new[] { EntitySlotStride, LegacyEntitySlotStride })
-            {
-                IntPtr pawn = mem.ReadPtr(listEntry, stride * slot);
-                if (!IsValidUserAddress(pawn))
-                    continue;
+            if (!IsValidUserAddress(entity))
+                return false;
 
-                int health = mem.ReadInt(pawn, Offsets.m_iHealth);
+            int pawnHandle = mem.ReadInt(entity, Offsets.m_hPlayerPawn);
+            return pawnHandle > 0;
+        }
+
+        public static bool LooksLikePlayerPawn(GameMemory mem, IntPtr pawn, IntPtr controller)
+        {
+            if (!IsValidUserAddress(pawn))
+                return false;
+
+            if (IsAlive(mem, pawn, controller))
+                return PlayerValidation.HasUsableOrigin(mem, pawn, controller);
+
+            return false;
+        }
+
+        public static bool LooksLikePlayerPawn(GameMemory mem, IntPtr pawn) =>
+            LooksLikePlayerPawn(mem, pawn, IntPtr.Zero);
+
+        private static bool IsAlive(GameMemory mem, IntPtr pawn, IntPtr controller)
+        {
+            if (Offsets.m_lifeState != 0 && mem.ReadByte(pawn + Offsets.m_lifeState) != 0)
+                return false;
+
+            int health = mem.ReadInt(pawn, Offsets.m_iHealth);
+            if (health is >= 1 and <= 100)
+                return true;
+
+            if (controller != IntPtr.Zero)
+            {
+                health = mem.ReadInt(controller, Offsets.m_iPawnHealth);
                 if (health is >= 1 and <= 100)
-                    return pawn;
+                    return true;
             }
 
-            return IntPtr.Zero;
+            return Offsets.m_lifeState == 0 || mem.ReadByte(pawn + Offsets.m_lifeState) == 0;
         }
 
         private static IntPtr ReadEntityAtSlot(GameMemory mem, IntPtr listEntry, int slot)
@@ -68,27 +107,6 @@ namespace External_Aimbot
             }
 
             return IntPtr.Zero;
-        }
-
-        public static bool LooksLikePlayerPawn(GameMemory mem, IntPtr pawn, IntPtr controller)
-        {
-            int health = mem.ReadInt(pawn, Offsets.m_iHealth);
-            if (health is < 1 or > 100 && controller != IntPtr.Zero)
-                health = mem.ReadInt(controller, Offsets.m_iPawnHealth);
-
-            if (health is < 1 or > 100)
-                return false;
-
-            Vector3 origin = mem.ReadVec(pawn, Offsets.m_vOldOrigin);
-            if (origin.X != 0f || origin.Y != 0f || origin.Z != 0f)
-                return true;
-
-            return controller != IntPtr.Zero;
-        }
-
-        public static bool LooksLikePlayerPawn(GameMemory mem, IntPtr pawn)
-        {
-            return LooksLikePlayerPawn(mem, pawn, IntPtr.Zero);
         }
 
         private static bool IsValidUserAddress(IntPtr address)

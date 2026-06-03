@@ -68,6 +68,7 @@ namespace External_Aimbot
                 SetField(classes, "EntitySpottedState_t", "m_bSpotted", v => Offsets.m_bSpotted = v);
                 SetField(classes, "EntitySpottedState_t", "m_bSpottedByMask", v => Offsets.m_bSpottedByMask = v);
                 SetField(classes, "C_BaseEntity", "m_pGameSceneNode", v => Offsets.m_pGameSceneNode = v);
+                SetField(classes, "CGameSceneNode", "m_vecAbsOrigin", v => Offsets.m_vecAbsOrigin = v);
                 SetField(classes, "CSkeletonInstance", "m_modelState", v => Offsets.m_modelState = v);
                 SetField(classes, "CBasePlayerController", "m_iszPlayerName", v => Offsets.m_iszPlayerName = v);
                 SetField(classes, "C_CSPlayerPawn", "m_ArmorValue", v => Offsets.m_ArmorValue = v);
