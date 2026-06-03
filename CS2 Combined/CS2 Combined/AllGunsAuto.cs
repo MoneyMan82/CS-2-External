@@ -19,7 +19,7 @@ namespace External_Aimbot
         private const int AttackRelease = 256;
         private const uint MouseEventLeftDown = 0x0002;
         private const uint MouseEventLeftUp = 0x0004;
-        private const int SubTickCycleMs = 16;
+        private const int MinPulseIntervalMs = 16;
         private const int ReleaseMs = 12;
         private const int PressMs = 4;
 
@@ -32,9 +32,9 @@ namespace External_Aimbot
 
         private static long _lastShotMs;
         private static long _attackStartMs;
+        private static bool _attackArmed;
         private static SemiClickPhase _semiPhase = SemiClickPhase.Idle;
         private static long _semiPhaseMs;
-        private static bool _wasAttackHeld;
 
         public static void Process(
             GameMemory mem,
@@ -61,13 +61,12 @@ namespace External_Aimbot
             IntPtr activeWeapon = WeaponInventory.GetActiveWeapon(mem, pawn, entitySystem);
             int defIndex = WeaponInventory.ReadDefinitionIndex(mem, activeWeapon);
             string weaponName = defIndex > 0 ? WeaponCatalog.GetName(defIndex) : "none";
-            bool attackHeld = InputState.IsAttackHeld(mem);
+            bool attackHeld = InputState.IsAttackHeld();
             bool isSemiAuto = defIndex > 0 && WeaponCatalog.IsSemiAuto(defIndex);
 
-            if (!attackHeld)
+            if (!attackHeld || activeWeapon == IntPtr.Zero || defIndex <= 0)
             {
-                _wasAttackHeld = false;
-                _attackStartMs = 0;
+                _attackArmed = false;
                 ResetSemiAutoState();
                 if (isSemiAuto)
                     ReleaseAttack(mem);
@@ -75,31 +74,12 @@ namespace External_Aimbot
                 debug = debug with
                 {
                     ActiveWeapon = weaponName,
-                    AttackHeld = false,
+                    AttackHeld = attackHeld,
                     IsSemiAuto = isSemiAuto,
                     Phase = "Idle",
                     Status = activeWeapon == IntPtr.Zero ? "No active weapon" : "Ready (hold LMB)",
                 };
                 return;
-            }
-
-            if (activeWeapon == IntPtr.Zero || defIndex <= 0)
-            {
-                ResetSemiAutoState();
-                debug = debug with
-                {
-                    AttackHeld = true,
-                    Phase = "Idle",
-                    Status = "No active weapon",
-                };
-                return;
-            }
-
-            if (!_wasAttackHeld)
-            {
-                _attackStartMs = Environment.TickCount64;
-                _lastShotMs = 0;
-                _wasAttackHeld = true;
             }
 
             int updated = DisableBurstOnLoadout(mem, pawn, entitySystem);
@@ -123,6 +103,7 @@ namespace External_Aimbot
 
             if (!isSemiAuto)
             {
+                _attackArmed = false;
                 ResetSemiAutoState();
                 debug = new AllGunsAutoDebug
                 {
@@ -139,6 +120,12 @@ namespace External_Aimbot
 
             ResetFireDelays(mem, activeWeapon);
             ClearBoltAction(mem, activeWeapon);
+
+            if (!_attackArmed)
+            {
+                _attackStartMs = Environment.TickCount64;
+                _attackArmed = true;
+            }
 
             (string status, string phase) = RunSemiAutoClicker(mem, defIndex);
             debug = new AllGunsAutoDebug
@@ -168,22 +155,14 @@ namespace External_Aimbot
         private static (string Status, string Phase) RunSemiAutoClicker(GameMemory mem, int defIndex)
         {
             long now = Environment.TickCount64;
-            int intervalMs = Math.Max(SubTickCycleMs, GetFireIntervalMs(defIndex));
+            int intervalMs = Math.Max(MinPulseIntervalMs, GetFireIntervalMs(defIndex));
             long waitBase = _lastShotMs > 0 ? _lastShotMs : _attackStartMs;
 
             switch (_semiPhase)
             {
                 case SemiClickPhase.Idle:
                     if (now - waitBase < intervalMs)
-                    {
-                        if (_lastShotMs > 0)
-                        {
-                            ReleaseAttack(mem);
-                            SimulateMouseUp();
-                        }
-
-                        return ($"Waiting {(intervalMs - (now - waitBase))}ms", "Idle");
-                    }
+                        return ($"Wait {intervalMs - (now - waitBase)}ms", "Wait");
 
                     _semiPhase = SemiClickPhase.Release;
                     _semiPhaseMs = now;
@@ -210,15 +189,12 @@ namespace External_Aimbot
                         return ("Press", "Press");
 
                     ReleaseAttack(mem);
-                    SimulateMouseUp();
                     _semiPhase = SemiClickPhase.Idle;
                     _lastShotMs = now;
                     return ("Auto shot", "Shot");
 
                 default:
                     ResetSemiAutoState();
-                    ReleaseAttack(mem);
-                    SimulateMouseUp();
                     return ("Reset", "Idle");
             }
         }
@@ -227,6 +203,7 @@ namespace External_Aimbot
         {
             _semiPhase = SemiClickPhase.Idle;
             _semiPhaseMs = 0;
+            _lastShotMs = 0;
         }
 
         private static int GetFireIntervalMs(int defIndex) => defIndex switch
