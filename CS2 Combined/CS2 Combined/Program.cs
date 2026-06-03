@@ -95,6 +95,7 @@ try
         localPlayer.origin = mem.ReadVec(localPlayer.pawnAddress, Offsets.m_vOldOrigin);
         localPlayer.view = mem.ReadVec(localPlayer.pawnAddress, Offsets.m_vecViewOffset);
 
+        Vector2 commandAngles = AimTarget.ReadCommandViewAngles(mem);
         Vector2 viewAngles = AimTarget.ReadViewAngles(mem, localPlayer.pawnAddress);
         Vector3 playerView = AimTarget.GetLocalEyePosition(localPlayer.origin, localPlayer.view);
 
@@ -189,10 +190,11 @@ try
 
         RecoilControl.TrackWeapon(weapon);
 
+        bool aimbotWroteAngles = false;
+
         if ((wantsAim || wantsRecoil) && localPlayer.pawnAddress != IntPtr.Zero)
         {
-            Vector2 currentAngles = viewAngles;
-            bool lockedOnTarget = false;
+            Vector2 currentAngles = commandAngles;
 
             if (!weapon.IsAttacking || weapon.ShotsFired <= 0)
                 RecoilControl.Reset();
@@ -225,38 +227,38 @@ try
                 {
                     Vector3 entityView = bestTarget.GetAimPosition(mem);
                     Vector2 targetAngles = Calculate.NormalizeAngles(
-                        Calculate.CalculateAngles(playerView, entityView)
-                    );
+                        Calculate.CalculateAngles(playerView, entityView));
+
+                    if (wantsRecoil && RecoilControl.ShouldCompensate(mem, localPlayer.pawnAddress, weapon))
+                    {
+                        Vector3 punch = RecoilControl.GetBulletPunch(mem, localPlayer.pawnAddress);
+                        targetAngles = Calculate.NormalizeAngles(
+                            RecoilControl.Apply(
+                                targetAngles,
+                                punch,
+                                weapon,
+                                renderer.recoilPredictor,
+                                renderer.recoilControl,
+                                renderer.recoilStrength));
+                    }
 
                     finalAngles = Calculate.NormalizeAngles(
-                        Calculate.SmoothAngles(currentAngles, targetAngles, renderer.smoothness)
-                    );
+                        Calculate.SmoothAngles(currentAngles, targetAngles, renderer.smoothness));
                     shouldWrite = true;
-                    lockedOnTarget = true;
                 }
             }
 
-            if (wantsRecoil && RecoilControl.ShouldCompensate(mem, localPlayer.pawnAddress, weapon))
+            if (!shouldWrite && wantsRecoil && RecoilControl.ShouldCompensate(mem, localPlayer.pawnAddress, weapon))
             {
-                Vector3 punch = RecoilControl.GetAimPunch(mem, localPlayer.pawnAddress);
-
-                if (lockedOnTarget)
-                {
-                    // Keep aim on bone target while spraying — only compensate visual punch, not spray pull.
-                    finalAngles = Calculate.NormalizeAngles(
-                        RecoilControl.ApplyAbsoluteCompensation(finalAngles, punch, renderer.recoilStrength));
-                }
-                else
-                {
-                    finalAngles = Calculate.NormalizeAngles(
-                        RecoilControl.Apply(
-                            finalAngles,
-                            punch,
-                            weapon,
-                            renderer.recoilPredictor,
-                            renderer.recoilControl,
-                            renderer.recoilStrength));
-                }
+                Vector3 punch = RecoilControl.GetBulletPunch(mem, localPlayer.pawnAddress);
+                finalAngles = Calculate.NormalizeAngles(
+                    RecoilControl.Apply(
+                        finalAngles,
+                        punch,
+                        weapon,
+                        renderer.recoilPredictor,
+                        renderer.recoilControl,
+                        renderer.recoilStrength));
 
                 shouldWrite = true;
             }
@@ -265,6 +267,7 @@ try
             {
                 Vector3 newAnglesVec3 = new Vector3(finalAngles.Y, finalAngles.X, 0.0f);
                 mem.WriteVec(mem.Client, Offsets.dwViewAngles, newAnglesVec3);
+                aimbotWroteAngles = wantsAim && aimKeyHeld;
             }
         }
 
@@ -317,9 +320,9 @@ try
         NoRecoil.Process(
             mem,
             localPlayer.pawnAddress,
-            renderer.miscNoRecoilEnabled,
+            renderer.miscNoRecoilEnabled && !aimbotWroteAngles,
             weapon,
-            viewAngles,
+            commandAngles,
             out NoRecoilDebug noRecoilDebug);
         renderer.SetNoRecoilDebug(noRecoilDebug);
 

@@ -22,7 +22,10 @@ namespace External_Aimbot
             }
         }
 
-        public static Vector3 GetAimPunch(GameMemory mem, IntPtr pawn)
+        public static Vector3 GetAimPunch(GameMemory mem, IntPtr pawn) =>
+            GetBulletPunch(mem, pawn);
+
+        public static Vector3 GetBulletPunch(GameMemory mem, IntPtr pawn)
         {
             if (pawn == IntPtr.Zero)
                 return Vector3.Zero;
@@ -35,10 +38,6 @@ namespace External_Aimbot
                 punch += mem.ReadVec(aimPunchServices, Offsets.m_predictableBaseAngle);
                 punch += mem.ReadVec(aimPunchServices, Offsets.m_unpredictableBaseAngle);
             }
-
-            IntPtr cameraServices = mem.ReadPtr(pawn, Offsets.m_pCameraServices);
-            if (cameraServices != IntPtr.Zero)
-                punch += mem.ReadVec(cameraServices, Offsets.m_vecCsViewPunchAngle);
 
             return punch;
         }
@@ -104,17 +103,10 @@ namespace External_Aimbot
 
         public static bool ShouldCompensate(GameMemory mem, IntPtr pawn, WeaponContext weapon)
         {
-            if (pawn == IntPtr.Zero || !weapon.SupportsRecoil)
+            if (pawn == IntPtr.Zero || !weapon.IsAttacking)
                 return false;
 
-            int shotsFired = mem.ReadInt(pawn, Offsets.m_iShotsFired);
-            if (shotsFired < 1)
-                return false;
-
-            if (!weapon.IsAttacking)
-                return false;
-
-            return shotsFired >= 1;
+            return mem.ReadInt(pawn, Offsets.m_iShotsFired) >= 1;
         }
     }
 }

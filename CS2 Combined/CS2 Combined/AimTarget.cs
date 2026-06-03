@@ -119,6 +119,12 @@ namespace External_Aimbot
         public static Vector3 GetLocalEyePosition(Vector3 origin, Vector3 viewOffset) =>
             origin + viewOffset;
 
+        public static Vector2 ReadCommandViewAngles(GameMemory mem)
+        {
+            Vector3 cmd = mem.ReadVec(mem.Client, Offsets.dwViewAngles);
+            return new Vector2(cmd.Y, cmd.X);
+        }
+
         public static Vector2 ReadViewAngles(GameMemory mem, IntPtr localPawn)
         {
             if (localPawn != IntPtr.Zero && Offsets.m_angEyeAngles != 0)
@@ -128,8 +134,7 @@ namespace External_Aimbot
                     return new Vector2(eye.Y, eye.X);
             }
 
-            Vector3 cmd = mem.ReadVec(mem.Client, Offsets.dwViewAngles);
-            return new Vector2(cmd.Y, cmd.X);
+            return ReadCommandViewAngles(mem);
         }
     }
 }
