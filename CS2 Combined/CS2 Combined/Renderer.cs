@@ -351,7 +351,7 @@ namespace External_Aimbot
             ImGui.Checkbox("No recoil", ref miscNoRecoilEnabled);
             UiTheme.HintMuted("Removes visual recoil while shooting (no aimbot needed)");
             ImGui.Checkbox("All guns auto", ref miscAllGunsAutoEnabled);
-            UiTheme.HintMuted("Semi-auto guns only. Uses safe memory pulses — no mouse injection.");
+            UiTheme.HintMuted("Semi-auto guns only. Safe attack pulses only — no weapon memory writes.");
 
             UiTheme.Section("Radar");
             ImGui.Checkbox("Radar reveal", ref miscRadarReveal);
