@@ -297,6 +297,13 @@ try
                 renderer.bhopHoldSpace,
                 renderer.bhopSubtick,
                 out bhopDebug);
+            Bhop.Process(
+                mem,
+                localPlayer.pawnAddress,
+                renderer.bhopEnabled,
+                renderer.bhopHoldSpace,
+                renderer.bhopSubtick,
+                out bhopDebug);
         }
         renderer.SetBhopDebug(bhopDebug);
 
@@ -375,7 +382,7 @@ try
             renderer.SetRadarBlips([]);
         }
 
-        Thread.Sleep(renderer.bhopEnabled && renderer.bhopSubtick ? 2 : 5);
+        Thread.Sleep(renderer.bhopEnabled ? (renderer.bhopSubtick ? 1 : 2) : 5);
     }
 }
 catch (Exception ex)

@@ -55,16 +55,9 @@ namespace External_Aimbot
             bool onGround = (flags & FlOnGround) != 0;
 
             if (onGround)
-            {
-                if (subtick)
-                    WriteSubtickJump(mem);
-                else
-                    mem.WriteInt(mem.Client, Offsets.dwJump, JumpPress);
-            }
+                WriteFastJump(mem, subtick ? 2 : 1);
             else
-            {
-                mem.WriteInt(mem.Client, Offsets.dwJump, JumpRelease);
-            }
+                ReleaseJump(mem);
 
             debug = new BhopDebug
             {
@@ -72,17 +65,21 @@ namespace External_Aimbot
                 OnGround = onGround,
                 Flags = flags,
                 Status = onGround
-                    ? (subtick ? "Jumping (subtick)" : "Jumping")
+                    ? (subtick ? "Jumping (fast subtick)" : "Jumping")
                     : "In air",
             };
         }
 
-        private static void WriteSubtickJump(GameMemory mem)
+        private static void WriteFastJump(GameMemory mem, int pulseCount)
         {
-            // Press-release-press within one update mimics subtick jump timing (+jump; -jump; +jump).
-            mem.WriteInt(mem.Client, Offsets.dwJump, JumpPress);
-            mem.WriteInt(mem.Client, Offsets.dwJump, JumpRelease);
-            mem.WriteInt(mem.Client, Offsets.dwJump, JumpPress);
+            pulseCount = Math.Clamp(pulseCount, 1, 3);
+
+            for (int i = 0; i < pulseCount; i++)
+            {
+                mem.WriteInt(mem.Client, Offsets.dwJump, JumpPress);
+                mem.WriteInt(mem.Client, Offsets.dwJump, JumpRelease);
+                mem.WriteInt(mem.Client, Offsets.dwJump, JumpPress);
+            }
         }
 
         private static void ReleaseJump(GameMemory mem)

@@ -58,7 +58,7 @@ namespace External_Aimbot
 
         public bool bhopEnabled = false;
         public bool bhopHoldSpace = true;
-        public bool bhopSubtick = false;
+        public bool bhopSubtick = true;
         public BhopDebug BhopState;
 
         public bool antiFlashEnabled = false;
@@ -319,13 +319,13 @@ namespace External_Aimbot
         {
             ImGui.Checkbox("auto bhop", ref bhopEnabled);
             ImGui.Checkbox("hold Space to bhop", ref bhopHoldSpace);
-            ImGui.Checkbox("subtick bhop (2x faster)", ref bhopSubtick);
+            ImGui.Checkbox("subtick bhop (fastest)", ref bhopSubtick);
 
             if (!bhopHoldSpace)
                 ImGui.TextColored(new Vector4(1f, 0.75f, 0.2f, 1f), "Jumps automatically when enabled");
 
             if (bhopSubtick)
-                ImGui.TextColored(new Vector4(0.4f, 0.85f, 1f, 1f), "Uses subtick jump pulses at 2x update rate");
+                ImGui.TextColored(new Vector4(0.4f, 0.85f, 1f, 1f), "Fast subtick pulses + 1ms update rate");
 
             ImGui.Spacing();
             ImGui.Separator();
