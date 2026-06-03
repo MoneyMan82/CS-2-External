@@ -7,23 +7,27 @@ namespace External_Aimbot
         private const int HeadBone = 6;
         private const int HeadBoneAlt = 8;
         private const int ChestBone = 4;
+        private const float HeadAimDrop = 3.5f;
 
         public static Vector3 GetHeadPosition(GameMemory mem, IntPtr pawn, Vector3 origin, Vector3 viewOffset)
         {
             if (pawn != IntPtr.Zero)
             {
                 if (BoneReader.TryGetBonePosition(mem, pawn, HeadBone, out Vector3 head))
-                    return head;
+                    return DropHeadAim(head);
 
                 if (BoneReader.TryGetBonePosition(mem, pawn, HeadBoneAlt, out head))
-                    return head;
+                    return DropHeadAim(head);
             }
 
             if (viewOffset.Z is > 10f and < 90f)
-                return origin + viewOffset;
+                return DropHeadAim(origin + viewOffset);
 
-            return origin + new Vector3(0f, 0f, 64f);
+            return DropHeadAim(origin + new Vector3(0f, 0f, 64f));
         }
+
+        private static Vector3 DropHeadAim(Vector3 position) =>
+            position + new Vector3(0f, 0f, -HeadAimDrop);
 
         public static Vector3 GetChestPosition(GameMemory mem, IntPtr pawn, Vector3 origin)
         {
