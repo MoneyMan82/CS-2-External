@@ -15,6 +15,7 @@ namespace External_Aimbot
     {
         private const int AttackPress = 65537;
         private const int AttackRelease = 256;
+        private const int EnableGraceMs = 500;
         private const int MinIntervalMs = 100;
         private const int ReleaseHoldMs = 18;
         private const int PressHoldMs = 14;
@@ -30,41 +31,53 @@ namespace External_Aimbot
         private static long _phaseStartMs;
         private static long _lastShotMs;
         private static long _attackStartMs;
+        private static long _enabledAtMs;
         private static int _shotCount;
         private static IntPtr _lastPawn;
         private static bool _attackPulsing;
+        private static bool _wasEnabled;
 
         public static void Process(
             GameMemory mem,
             IntPtr pawn,
             IntPtr entitySystem,
             bool enabled,
-            bool overlayCapturingMouse,
-            IntPtr overlayWindow,
+            bool overlayBlockingInput,
             out AllGunsAutoDebug debug)
         {
             debug = new AllGunsAutoDebug { Status = enabled ? "Active" : "Disabled" };
 
-            if (!enabled)
+            if (enabled && !_wasEnabled)
+                _enabledAtMs = Environment.TickCount64;
+
+            if (!enabled && _wasEnabled)
             {
                 StopPulsing(mem);
                 ResetState();
-                return;
             }
 
-            if (overlayCapturingMouse || IsOverlayForeground(overlayWindow))
+            _wasEnabled = enabled;
+
+            if (!enabled)
+                return;
+
+            if (overlayBlockingInput || IsWithinEnableGracePeriod())
             {
-                StopPulsing(mem);
                 ResetState();
-                debug = debug with { Status = "Move off menu to shoot" };
+                debug = debug with
+                {
+                    Phase = "Idle",
+                    Status = overlayBlockingInput
+                        ? "Using menu — click in game first"
+                        : "Arming — release mouse from menu",
+                };
                 return;
             }
 
             if (pawn == IntPtr.Zero || entitySystem == IntPtr.Zero)
             {
-                StopPulsing(mem);
                 ResetState();
-                debug = debug with { Status = "Not in game" };
+                debug = debug with { Phase = "Idle", Status = "Not in game" };
                 return;
             }
 
@@ -77,7 +90,7 @@ namespace External_Aimbot
 
             if (Offsets.dwAttack == 0)
             {
-                debug = debug with { Status = "Attack offset missing" };
+                debug = debug with { Phase = "Idle", Status = "Attack offset missing" };
                 return;
             }
 
@@ -85,7 +98,7 @@ namespace External_Aimbot
             {
                 StopPulsing(mem);
                 ResetState();
-                debug = debug with { Status = "Dead / spectating" };
+                debug = debug with { Phase = "Idle", Status = "Dead / spectating" };
                 return;
             }
 
@@ -108,7 +121,7 @@ namespace External_Aimbot
                     AttackHeld = attackHeld,
                     IsSemiAuto = isSemiAuto,
                     Phase = "Idle",
-                    Status = !ownedWeapon ? "No active weapon" : "Ready (shoot in CS2, not on menu)",
+                    Status = !ownedWeapon ? "No active weapon" : "Ready (shoot in CS2)",
                 };
                 return;
             }
@@ -158,6 +171,14 @@ namespace External_Aimbot
                 Phase = phase,
                 Status = status,
             };
+        }
+
+        private static bool IsWithinEnableGracePeriod()
+        {
+            if (_enabledAtMs == 0)
+                return false;
+
+            return Environment.TickCount64 - _enabledAtMs < EnableGraceMs;
         }
 
         private static (string Status, string Phase) RunSemiAutoPulse(GameMemory mem, int defIndex)
@@ -256,14 +277,6 @@ namespace External_Aimbot
             return mem.ReadByte(pawn + Offsets.m_lifeState) == 0;
         }
 
-        private static bool IsOverlayForeground(IntPtr overlayWindow)
-        {
-            if (overlayWindow == IntPtr.Zero)
-                return false;
-
-            return GetForegroundWindow() == overlayWindow;
-        }
-
         private static void PressAttack(GameMemory mem)
         {
             mem.WriteInt(mem.Client, Offsets.dwAttack, AttackPress);
@@ -281,9 +294,6 @@ namespace External_Aimbot
             long value = weapon.ToInt64();
             return value > 0x10000 && value < 0x7FFFFFFFFFFF;
         }
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
     }
 }
 

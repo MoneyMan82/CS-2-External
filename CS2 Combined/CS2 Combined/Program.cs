@@ -85,8 +85,7 @@ try
                 IntPtr.Zero,
                 IntPtr.Zero,
                 renderer.miscAllGunsAutoEnabled,
-                renderer.IsOverlayCapturingMouse,
-                renderer.OverlayWindowHandle,
+                renderer.IsOverlayBlockingInput,
                 out AllGunsAutoDebug idleAllGunsAutoDebug);
             renderer.SetAllGunsAutoDebug(idleAllGunsAutoDebug);
             renderer.SetMiscDebug(default);
@@ -338,8 +337,7 @@ try
             localPlayer.pawnAddress,
             entitySystem,
             renderer.miscAllGunsAutoEnabled,
-            renderer.IsOverlayCapturingMouse,
-            renderer.OverlayWindowHandle,
+            renderer.IsOverlayBlockingInput,
             out AllGunsAutoDebug allGunsAutoDebug);
         renderer.SetAllGunsAutoDebug(allGunsAutoDebug);
 

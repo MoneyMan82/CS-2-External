@@ -67,11 +67,10 @@ namespace External_Aimbot
         public bool miscNoRecoilEnabled = false;
         public NoRecoilDebug NoRecoilState;
 
-        private volatile bool _overlayCapturingMouse;
+        private volatile bool _overlayBlockingInput;
+        private volatile IntPtr _cachedOverlayHandle;
 
-        public bool IsOverlayCapturingMouse => _overlayCapturingMouse;
-
-        public IntPtr OverlayWindowHandle => window?.Handle ?? IntPtr.Zero;
+        public bool IsOverlayBlockingInput => _overlayBlockingInput;
 
         public bool miscAllGunsAutoEnabled = false;
         public AllGunsAutoDebug AllGunsAutoState;
@@ -137,7 +136,11 @@ namespace External_Aimbot
             ImGui.SetNextWindowSize(new Vector2(480f, 0f), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSizeConstraints(new Vector2(420f, 320f), new Vector2(560f, 900f));
 
+            if (window != null)
+                _cachedOverlayHandle = window.Handle;
+
             ImGui.Begin("CS2 Combined", ImGuiWindowFlags.NoCollapse);
+            UpdateOverlayInputBlock();
 
             UiTheme.DrawMenuHeader();
 
@@ -184,7 +187,7 @@ namespace External_Aimbot
 
             DrawDisplayModeHelp();
 
-            _overlayCapturingMouse = ImGui.GetIO().WantCaptureMouse;
+            UpdateOverlayInputBlock();
 
             ImGui.End();
 
@@ -359,7 +362,7 @@ namespace External_Aimbot
             ImGui.Checkbox("No recoil", ref miscNoRecoilEnabled);
             UiTheme.HintMuted("Removes visual recoil while shooting (no aimbot needed)");
             ImGui.Checkbox("All guns auto", ref miscAllGunsAutoEnabled);
-            UiTheme.HintMuted("Semi-auto only. Uses game attack memory — never touches overlay mouse input.");
+            UiTheme.HintMuted("Semi-auto only. Enable it, then click in-game before shooting.");
 
             UiTheme.Section("Radar");
             ImGui.Checkbox("Radar reveal", ref miscRadarReveal);
@@ -389,9 +392,14 @@ namespace External_Aimbot
 
             if (miscAllGunsAutoEnabled)
             {
-                var auto = AllGunsAutoState;
+                AllGunsAutoDebug auto;
+                lock (_overlayLock)
+                {
+                    auto = AllGunsAutoState;
+                }
+
                 UiTheme.StatusRow("Auto", auto.Status, UiTheme.TextPrimary);
-                UiTheme.StatusRow("Phase", auto.Phase, UiTheme.TextInfo);
+                UiTheme.StatusRow("Phase", string.IsNullOrEmpty(auto.Phase) ? "Idle" : auto.Phase, UiTheme.TextInfo);
                 UiTheme.StatusRow("Weapon", auto.ActiveWeapon, UiTheme.TextMuted);
                 UiTheme.StatusRow("Shots", auto.ShotCount.ToString(),
                     auto.ShotCount > 0 ? UiTheme.TextSuccess : UiTheme.TextMuted);
@@ -439,7 +447,28 @@ namespace External_Aimbot
 
         public void SetNoRecoilDebug(NoRecoilDebug debug) => NoRecoilState = debug;
 
-        public void SetAllGunsAutoDebug(AllGunsAutoDebug debug) => AllGunsAutoState = debug;
+        public void SetAllGunsAutoDebug(AllGunsAutoDebug debug)
+        {
+            lock (_overlayLock)
+            {
+                AllGunsAutoState = debug;
+            }
+        }
+
+        private void UpdateOverlayInputBlock()
+        {
+            _overlayBlockingInput =
+                ImGui.GetIO().WantCaptureMouse
+                || ImGui.IsAnyItemActive()
+                || ImGui.IsAnyItemFocused()
+                || ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow);
+
+            if (_cachedOverlayHandle != IntPtr.Zero && GetForegroundWindow() == _cachedOverlayHandle)
+                _overlayBlockingInput = true;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
 
         public void SetMiscDebug(MiscDebug debug) => MiscState = debug;
 
