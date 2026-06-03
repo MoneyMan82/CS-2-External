@@ -385,7 +385,12 @@ try
             renderer.SetRadarBlips([]);
         }
 
-        Thread.Sleep(renderer.bhopEnabled ? (renderer.bhopSubtick ? 1 : 2) : 5);
+        Thread.Sleep(
+            renderer.bhopEnabled
+                ? (renderer.bhopSubtick ? 1 : 2)
+                : renderer.miscAllGunsAutoEnabled && InputState.IsAttackHeld(mem)
+                    ? 1
+                    : 5);
     }
 }
 catch (Exception ex)
