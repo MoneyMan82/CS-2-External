@@ -56,6 +56,9 @@
         public static int m_pNextSibling = 0x48;
         public static int m_pOwner = 0x30;
         public static int m_MeshGroupMask = 0x1C8;
+        public static int m_AttributeList = 0x208;
+        public static int m_Attributes = 0x8;
+        public static int m_nCustomEconReloadEventId = 0x18BC;
 
         public static int m_nFallbackPaintKit = 0x1658;
         public static int m_nFallbackSeed = 0x165C;

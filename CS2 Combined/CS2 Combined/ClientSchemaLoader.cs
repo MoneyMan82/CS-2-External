@@ -58,6 +58,9 @@ namespace External_Aimbot
                 SetField(classes, "CGameSceneNode", "m_pNextSibling", v => Offsets.m_pNextSibling = v);
                 SetField(classes, "CGameSceneNode", "m_pOwner", v => Offsets.m_pOwner = v);
                 SetField(classes, "CModelState", "m_MeshGroupMask", v => Offsets.m_MeshGroupMask = v);
+                SetField(classes, "C_EconItemView", "m_AttributeList", v => Offsets.m_AttributeList = v);
+                SetField(classes, "CAttributeList", "m_Attributes", v => Offsets.m_Attributes = v);
+                SetField(classes, "C_CSPlayerPawn", "m_nCustomEconReloadEventId", v => Offsets.m_nCustomEconReloadEventId = v);
                 SetField(classes, "C_CSWeaponBase", "m_iRecoilIndex", v => Offsets.m_iRecoilIndex = v);
                 SetField(classes, "C_CSWeaponBase", "m_flRecoilIndex", v => Offsets.m_flRecoilIndex = v);
                 SetField(classes, "C_CSWeaponBase", "m_fAccuracyPenalty", v => Offsets.m_fAccuracyPenalty = v);

@@ -82,6 +82,7 @@ namespace External_Aimbot
         public MiscDebug MiscState;
 
         public bool skinChangerEnabled = false;
+        public bool skinChangerVisualRefresh = false;
         public int skinEditorWeaponDefIndex = 7;
         public int skinEditorSkinIndex = 1;
         public float skinEditorWear = 0.01f;
@@ -443,7 +444,9 @@ namespace External_Aimbot
         {
             UiTheme.Section("Core");
             ImGui.Checkbox("Enable skin changer", ref skinChangerEnabled);
+            ImGui.Checkbox("Visual refresh (experimental)", ref skinChangerVisualRefresh);
             UiTheme.HintMuted("1. Pick weapon + skin  2. Save for weapon  3. Enable and spawn with that gun.");
+            UiTheme.HintMuted("Turn on Visual refresh if the gun stays vanilla. Leave off if CS2 crashes.");
             UiTheme.HintMuted("Client-side visual only. Drop/re-buy weapon if skin does not show.");
             UiTheme.HintMuted("Gloves are not supported yet.");
 
@@ -536,6 +539,13 @@ namespace External_Aimbot
             UiTheme.BeginStatusPanel();
             var debug = SkinChangerState;
             UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
+            UiTheme.StatusRow(
+                "Refresh fn",
+                debug.RefreshReady ? "found" : "missing",
+                debug.RefreshReady ? UiTheme.TextSuccess : UiTheme.TextWarning);
+
+            if (debug.SkinsQueued > 0)
+                UiTheme.StatusRow("Queued refresh", debug.SkinsQueued.ToString(), UiTheme.TextInfo);
 
             if (debug.Loadout == null || debug.Loadout.Length == 0)
             {
@@ -547,7 +557,9 @@ namespace External_Aimbot
                 {
                     string tag = weapon.Configured ? "configured" : "default";
                     Vector4 color = weapon.Configured ? UiTheme.TextSuccess : UiTheme.TextMuted;
-                    ImGui.TextColored(color, $"• {weapon.Name} (kit {weapon.CurrentPaintKit}) — {tag}");
+                    ImGui.TextColored(
+                        color,
+                        $"• {weapon.Name} (kit {weapon.CurrentPaintKit}, id {weapon.ItemIdHigh}) — {tag}");
                 }
             }
 

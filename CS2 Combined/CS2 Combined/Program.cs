@@ -361,6 +361,7 @@ try
             localPlayer.pawnAddress,
             entitySystem,
             renderer.skinChangerEnabled,
+            renderer.skinChangerVisualRefresh,
             renderer.GetSkinConfigs(),
             out SkinChangerDebug skinDebug);
         renderer.SetSkinChangerDebug(skinDebug);

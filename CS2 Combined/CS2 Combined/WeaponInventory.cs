@@ -34,9 +34,11 @@ namespace External_Aimbot
             if (weapon == IntPtr.Zero)
                 return 0;
 
-            return mem.ReadInt(
+            int raw = mem.ReadInt(
                 weapon,
                 Offsets.m_AttributeManager + Offsets.m_Item + Offsets.m_iItemDefinitionIndex);
+
+            return raw & 0xFFFF;
         }
 
         private static IEnumerable<int> ReadWeaponHandles(GameMemory mem, IntPtr weaponServices)
@@ -45,31 +47,27 @@ namespace External_Aimbot
 
             void AddHandle(int handle)
             {
-                if (handle > 0)
+                if (handle > 0 && handle != unchecked((int)0xFFFFFFFF))
                     handles.Add(handle);
             }
 
-            int vectorSize = mem.ReadInt(weaponServices, Offsets.m_hMyWeapons + 0x8);
-            IntPtr vectorData = mem.ReadPtr(weaponServices, Offsets.m_hMyWeapons + 0x10);
-            if (vectorSize > 0 && vectorSize <= MaxWeapons && vectorData != IntPtr.Zero)
+            int count = mem.ReadInt(weaponServices, Offsets.m_hMyWeapons);
+            IntPtr data = mem.ReadPtr(weaponServices, Offsets.m_hMyWeapons + 0x8);
+            if (count > 0 && count <= MaxWeapons && data != IntPtr.Zero)
             {
-                for (int i = 0; i < vectorSize; i++)
-                    AddHandle(mem.ReadInt(vectorData, i * 4));
+                for (int i = 0; i < count; i++)
+                    AddHandle(mem.ReadInt(data, i * 4));
             }
 
-            vectorSize = mem.ReadInt(weaponServices, Offsets.m_hMyWeapons);
-            vectorData = mem.ReadPtr(weaponServices, Offsets.m_hMyWeapons + 0x8);
-            if (vectorSize > 0 && vectorSize <= MaxWeapons && vectorData != IntPtr.Zero)
+            count = mem.ReadInt(weaponServices, Offsets.m_hMyWeapons + 0x8);
+            data = mem.ReadPtr(weaponServices, Offsets.m_hMyWeapons + 0x10);
+            if (count > 0 && count <= MaxWeapons && data != IntPtr.Zero)
             {
-                for (int i = 0; i < vectorSize; i++)
-                    AddHandle(mem.ReadInt(vectorData, i * 4));
+                for (int i = 0; i < count; i++)
+                    AddHandle(mem.ReadInt(data, i * 4));
             }
-
-            for (int i = 0; i < MaxWeapons; i++)
-                AddHandle(mem.ReadInt(weaponServices, Offsets.m_hMyWeapons + i * 4));
 
             AddHandle(mem.ReadInt(weaponServices, Offsets.m_hActiveWeapon));
-
             return handles;
         }
     }
