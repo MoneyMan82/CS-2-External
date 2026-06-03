@@ -67,6 +67,12 @@ namespace External_Aimbot
         public bool miscNoRecoilEnabled = false;
         public NoRecoilDebug NoRecoilState;
 
+        private volatile bool _overlayCapturingMouse;
+
+        public bool IsOverlayCapturingMouse => _overlayCapturingMouse;
+
+        public IntPtr OverlayWindowHandle => window?.Handle ?? IntPtr.Zero;
+
         public bool miscAllGunsAutoEnabled = false;
         public AllGunsAutoDebug AllGunsAutoState;
 
@@ -177,6 +183,8 @@ namespace External_Aimbot
             }
 
             DrawDisplayModeHelp();
+
+            _overlayCapturingMouse = ImGui.GetIO().WantCaptureMouse;
 
             ImGui.End();
 
@@ -351,7 +359,7 @@ namespace External_Aimbot
             ImGui.Checkbox("No recoil", ref miscNoRecoilEnabled);
             UiTheme.HintMuted("Removes visual recoil while shooting (no aimbot needed)");
             ImGui.Checkbox("All guns auto", ref miscAllGunsAutoEnabled);
-            UiTheme.HintMuted("Semi-auto only. Requires CS2 focused + alive. Uses mouse clicks, not game memory.");
+            UiTheme.HintMuted("Semi-auto only. Uses game attack memory — never touches overlay mouse input.");
 
             UiTheme.Section("Radar");
             ImGui.Checkbox("Radar reveal", ref miscRadarReveal);

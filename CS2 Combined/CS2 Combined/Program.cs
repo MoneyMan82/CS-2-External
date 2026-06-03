@@ -80,7 +80,14 @@ try
             renderer.SetAntiFlashDebug(idleAntiFlashDebug);
             NoRecoil.Process(mem, IntPtr.Zero, renderer.miscNoRecoilEnabled, default, Vector2.Zero, out NoRecoilDebug idleNoRecoilDebug);
             renderer.SetNoRecoilDebug(idleNoRecoilDebug);
-            AllGunsAuto.Process(mem, IntPtr.Zero, IntPtr.Zero, renderer.miscAllGunsAutoEnabled, out AllGunsAutoDebug idleAllGunsAutoDebug);
+            AllGunsAuto.Process(
+                mem,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                renderer.miscAllGunsAutoEnabled,
+                renderer.IsOverlayCapturingMouse,
+                renderer.OverlayWindowHandle,
+                out AllGunsAutoDebug idleAllGunsAutoDebug);
             renderer.SetAllGunsAutoDebug(idleAllGunsAutoDebug);
             renderer.SetMiscDebug(default);
             renderer.SetRadarBlips([]);
@@ -331,6 +338,8 @@ try
             localPlayer.pawnAddress,
             entitySystem,
             renderer.miscAllGunsAutoEnabled,
+            renderer.IsOverlayCapturingMouse,
+            renderer.OverlayWindowHandle,
             out AllGunsAutoDebug allGunsAutoDebug);
         renderer.SetAllGunsAutoDebug(allGunsAutoDebug);
 
