@@ -20,7 +20,6 @@ namespace External_Aimbot
         private const float DefaultPixelToYaw = 0.012f;
         private const float DefaultPixelToPitch = 0.082f;
 
-        private static readonly Dictionary<int, WeaponRecoilPreset> Presets = BuildPresets();
         private static readonly Dictionary<WeaponClass, float> ClassScales = new()
         {
             [WeaponClass.Rifle] = 1f,
@@ -30,6 +29,13 @@ namespace External_Aimbot
             [WeaponClass.Pistol] = 0.58f,
             [WeaponClass.Shotgun] = 0.42f,
             [WeaponClass.Unknown] = 0.75f,
+        };
+
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
         };
 
         public static bool TryGet(int weaponId, out WeaponRecoilPreset preset) =>
@@ -184,13 +190,6 @@ namespace External_Aimbot
                 _ => null,
             };
 
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true,
-        };
-
         private sealed class WeaponRecoilFile
         {
             public ConversionEntry? Conversion { get; set; }
@@ -308,6 +307,8 @@ namespace External_Aimbot
             [-2,0],[-1,0],[-1,0],[-1,0],[0,0],[0,0],[0,0],[0,0],[-3,0],[-5,0],[-8,0],[-4,0],[0,0],[3,0],[6,0],[6,0],[6,0],[6,0],[3,0],[2,0],
             [3,0],[5,0],[4,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],
         ];
+
+        private static readonly Dictionary<int, WeaponRecoilPreset> Presets = BuildPresets();
     }
 
     internal static class WeaponCatalog
