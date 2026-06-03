@@ -33,7 +33,7 @@ namespace External_Aimbot
             float screenWidth,
             float screenHeight)
         {
-            Vector3 headWorld = entity.GetAimPosition();
+            Vector3 headWorld = entity.GetAimPosition(mem);
             Vector3 feetWorld = entity.origin;
 
             if (!ViewMatrix.TryWorldToScreen(headWorld, viewMatrix, screenWidth, screenHeight, out Vector2 headScreen) ||

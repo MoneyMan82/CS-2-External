@@ -19,13 +19,14 @@ namespace External_Aimbot
         public uint lifeState { get; set; }
         public float distance { get; set; } //from localplayer
 
-        public Vector3 GetAimPosition()
-        {
-            if (view.Z is > 10f and < 90f)
-                return Vector3.Add(origin, view);
+        internal Vector3 GetAimPosition(GameMemory mem) =>
+            AimTarget.GetHeadPosition(mem, pawnAddress, origin, view);
 
-            return origin + new Vector3(0f, 0f, 64f);
-        }
+        public Vector3 GetAimPosition() =>
+            view.Z is > 10f and < 90f ? origin + view : origin + new Vector3(0f, 0f, 64f);
+
+        internal Vector3 GetChestPosition(GameMemory mem) =>
+            AimTarget.GetChestPosition(mem, pawnAddress, origin);
 
         public Vector3 GetChestPosition() => origin + new Vector3(0f, 0f, 36f);
     }

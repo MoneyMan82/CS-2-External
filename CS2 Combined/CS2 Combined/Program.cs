@@ -95,9 +95,8 @@ try
         localPlayer.origin = mem.ReadVec(localPlayer.pawnAddress, Offsets.m_vOldOrigin);
         localPlayer.view = mem.ReadVec(localPlayer.pawnAddress, Offsets.m_vecViewOffset);
 
-        Vector3 viewAnglesVec = mem.ReadVec(mem.Client, Offsets.dwViewAngles);
-        Vector2 viewAngles = new(viewAnglesVec.Y, viewAnglesVec.X);
-        Vector3 playerView = Vector3.Add(localPlayer.origin, localPlayer.view);
+        Vector2 viewAngles = AimTarget.ReadViewAngles(mem, localPlayer.pawnAddress);
+        Vector3 playerView = AimTarget.GetLocalEyePosition(localPlayer.origin, localPlayer.view);
 
         int localPlayerIndex = localDebug.ControllerIndex;
 
@@ -111,8 +110,8 @@ try
                     entity.pawnAddress,
                     localPlayerIndex,
                     playerView,
-                    entity.GetAimPosition(),
-                    entity.GetChestPosition(),
+                    entity.GetAimPosition(mem),
+                    entity.GetChestPosition(mem),
                     viewAngles,
                     renderer.mapRaytracing);
         }
@@ -129,7 +128,7 @@ try
 
         foreach (Entity entity in entities)
         {
-            if (ViewMatrix.WorldToScreen(entity.GetAimPosition(), viewMatrix, screenSize.X, screenSize.Y, out Vector2 screenPos))
+            if (ViewMatrix.WorldToScreen(entity.GetAimPosition(mem), viewMatrix, screenSize.X, screenSize.Y, out Vector2 screenPos))
                 overlayLines.Add(new OverlayLine(screenPos, entity.isVisible));
         }
 
@@ -186,6 +185,7 @@ try
         if ((wantsAim || wantsRecoil) && localPlayer.pawnAddress != IntPtr.Zero)
         {
             Vector2 currentAngles = viewAngles;
+            bool lockedOnTarget = false;
 
             if (!weapon.IsAttacking || weapon.ShotsFired <= 0)
                 RecoilControl.Reset();
@@ -203,7 +203,7 @@ try
                     if (renderer.visibilityCheck && !entity.isVisible)
                         continue;
 
-                    Vector3 entityView = entity.GetAimPosition();
+                    Vector3 entityView = entity.GetAimPosition(mem);
                     Vector2 targetAngles = Calculate.CalculateAngles(playerView, entityView);
                     float fovDistance = Calculate.GetFovDistance(currentAngles, targetAngles);
 
@@ -216,7 +216,7 @@ try
 
                 if (bestTarget != null)
                 {
-                    Vector3 entityView = bestTarget.GetAimPosition();
+                    Vector3 entityView = bestTarget.GetAimPosition(mem);
                     Vector2 targetAngles = Calculate.NormalizeAngles(
                         Calculate.CalculateAngles(playerView, entityView)
                     );
@@ -225,21 +225,32 @@ try
                         Calculate.SmoothAngles(currentAngles, targetAngles, renderer.smoothness)
                     );
                     shouldWrite = true;
+                    lockedOnTarget = true;
                 }
             }
 
             if (wantsRecoil && RecoilControl.ShouldCompensate(mem, localPlayer.pawnAddress, weapon))
             {
                 Vector3 punch = RecoilControl.GetAimPunch(mem, localPlayer.pawnAddress);
-                finalAngles = Calculate.NormalizeAngles(
-                    RecoilControl.Apply(
-                        finalAngles,
-                        punch,
-                        weapon,
-                        renderer.recoilPredictor,
-                        renderer.recoilControl,
-                        renderer.recoilStrength)
-                );
+
+                if (lockedOnTarget)
+                {
+                    // Keep aim on bone target while spraying — only compensate visual punch, not spray pull.
+                    finalAngles = Calculate.NormalizeAngles(
+                        RecoilControl.ApplyAbsoluteCompensation(finalAngles, punch, renderer.recoilStrength));
+                }
+                else
+                {
+                    finalAngles = Calculate.NormalizeAngles(
+                        RecoilControl.Apply(
+                            finalAngles,
+                            punch,
+                            weapon,
+                            renderer.recoilPredictor,
+                            renderer.recoilControl,
+                            renderer.recoilStrength));
+                }
+
                 shouldWrite = true;
             }
 
@@ -349,7 +360,7 @@ try
                 RadarOverlay.BuildBlips(
                     localPlayer,
                     radarEntities,
-                    viewAnglesVec.Y,
+                    viewAngles.Y,
                     renderer.miscRadarRange));
         }
         else
