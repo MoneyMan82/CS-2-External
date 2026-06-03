@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace External_Aimbot
 {
     public readonly struct AllGunsAutoDebug
@@ -48,34 +46,34 @@ namespace External_Aimbot
                 return;
             }
 
-            int updated = 0;
-            foreach (IntPtr weapon in WeaponInventory.EnumerateWeapons(mem, pawn, entitySystem))
-            {
-                mem.WriteInt(weapon, Offsets.m_bBurstMode, 0);
-                updated++;
-            }
-
             IntPtr activeWeapon = WeaponInventory.GetActiveWeapon(mem, pawn, entitySystem);
             int defIndex = WeaponInventory.ReadDefinitionIndex(mem, activeWeapon);
             string weaponName = defIndex > 0 ? WeaponCatalog.GetName(defIndex) : "none";
+            bool attackHeld = InputState.IsAttackHeld();
+            bool isSemiAuto = defIndex > 0 && WeaponCatalog.IsSemiAuto(defIndex);
 
-            if (!InputState.IsAttackHeld() || activeWeapon == IntPtr.Zero || defIndex <= 0)
+            if (!attackHeld || activeWeapon == IntPtr.Zero || defIndex <= 0)
             {
                 ResetSemiAutoState();
-                ReleaseAttack(mem);
+                if (isSemiAuto)
+                    ReleaseAttack(mem);
+
                 debug = debug with
                 {
                     ActiveWeapon = weaponName,
-                    WeaponsUpdated = updated,
                     Status = activeWeapon == IntPtr.Zero ? "No active weapon" : "Ready",
                 };
                 return;
             }
 
+            int updated = DisableBurstOnLoadout(mem, pawn, entitySystem);
+
             if (mem.ReadBool(activeWeapon, Offsets.m_bInReload))
             {
                 ResetSemiAutoState();
-                ReleaseAttack(mem);
+                if (isSemiAuto)
+                    ReleaseAttack(mem);
+
                 debug = debug with
                 {
                     ActiveWeapon = weaponName,
@@ -85,31 +83,42 @@ namespace External_Aimbot
                 return;
             }
 
-            ResetFireDelays(mem, activeWeapon);
-            ClearBoltAction(mem, activeWeapon);
-
-            if (WeaponCatalog.IsSemiAuto(defIndex))
+            if (!isSemiAuto)
             {
-                string status = RunSemiAutoClicker(mem, defIndex);
+                ResetSemiAutoState();
                 debug = new AllGunsAutoDebug
                 {
                     ActiveWeapon = weaponName,
                     Shooting = true,
                     WeaponsUpdated = updated,
-                    Status = status,
+                    Status = "Full auto (unchanged)",
                 };
                 return;
             }
 
-            ResetSemiAutoState();
-            HoldAttack(mem);
+            ResetFireDelays(mem, activeWeapon);
+            ClearBoltAction(mem, activeWeapon);
+
+            string status = RunSemiAutoClicker(mem, defIndex);
             debug = new AllGunsAutoDebug
             {
                 ActiveWeapon = weaponName,
                 Shooting = true,
                 WeaponsUpdated = updated,
-                Status = "Full auto delays cleared",
+                Status = status,
             };
+        }
+
+        private static int DisableBurstOnLoadout(GameMemory mem, IntPtr pawn, IntPtr entitySystem)
+        {
+            int updated = 0;
+            foreach (IntPtr weapon in WeaponInventory.EnumerateWeapons(mem, pawn, entitySystem))
+            {
+                mem.WriteInt(weapon, Offsets.m_bBurstMode, 0);
+                updated++;
+            }
+
+            return updated;
         }
 
         private static string RunSemiAutoClicker(GameMemory mem, int defIndex)
@@ -205,14 +214,6 @@ namespace External_Aimbot
         {
             if (Offsets.m_bNeedsBoltAction != 0)
                 mem.WriteInt(weapon, Offsets.m_bNeedsBoltAction, 0);
-        }
-
-        private static void HoldAttack(GameMemory mem)
-        {
-            if (Offsets.dwAttack == 0)
-                return;
-
-            mem.WriteInt(mem.Client, Offsets.dwAttack, AttackPress);
         }
 
         private static void PressAttack(GameMemory mem)
