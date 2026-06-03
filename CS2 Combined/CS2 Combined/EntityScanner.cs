@@ -21,8 +21,7 @@ namespace External_Aimbot
 
             int highestEntityIndex = mem.ReadInt(entitySystem, Offsets.dwGameEntitySystem_highestEntityIndex);
 
-            ScanControllerSlots(mem, entitySystem, localPlayer, seenPawns, entities);
-            ScanIndexedControllers(mem, entitySystem, localPlayer, seenPawns, entities);
+            ScanControllers(mem, entitySystem, localPlayer, seenPawns, entities);
             ScanEntityIndices(mem, entitySystem, localPlayer, highestEntityIndex, seenPawns, entities);
 
             return entities;
@@ -51,7 +50,7 @@ namespace External_Aimbot
             return filtered;
         }
 
-        private static void ScanControllerSlots(
+        private static void ScanControllers(
             GameMemory mem,
             IntPtr entitySystem,
             Entity localPlayer,
@@ -68,24 +67,10 @@ namespace External_Aimbot
                 if (controller == IntPtr.Zero)
                     continue;
 
-                TryAddFromController(mem, entitySystem, controller, localPlayer, seenPawns, entities);
-            }
-        }
-
-        private static void ScanIndexedControllers(
-            GameMemory mem,
-            IntPtr entitySystem,
-            Entity localPlayer,
-            HashSet<IntPtr> seenPawns,
-            List<Entity> entities)
-        {
-            for (int i = 1; i <= 64; i++)
-            {
-                IntPtr controller = EntityList.GetEntityFromIndex(mem, entitySystem, i);
-                if (!EntityList.LooksLikePlayerController(mem, controller))
+                if (!TryResolvePawn(mem, entitySystem, controller, localPlayer.pawnAddress, out IntPtr pawn))
                     continue;
 
-                TryAddFromController(mem, entitySystem, controller, localPlayer, seenPawns, entities);
+                TryAddEntity(mem, controller, pawn, localPlayer, seenPawns, entities);
             }
         }
 
@@ -123,33 +108,27 @@ namespace External_Aimbot
             }
         }
 
-        private static void TryAddFromController(
+        private static bool TryResolvePawn(
             GameMemory mem,
             IntPtr entitySystem,
             IntPtr controller,
-            Entity localPlayer,
-            HashSet<IntPtr> seenPawns,
-            List<Entity> entities)
+            IntPtr localPawn,
+            out IntPtr pawn)
         {
-            foreach (int handle in GetPawnHandles(mem, controller))
-            {
-                IntPtr pawn = EntityList.ResolveEntityIndex(mem, entitySystem, handle);
-                if (pawn == IntPtr.Zero || pawn == localPlayer.pawnAddress)
-                    continue;
+            pawn = IntPtr.Zero;
 
-                TryAddEntity(mem, controller, pawn, localPlayer, seenPawns, entities);
-            }
-        }
+            int pawnHandle = mem.ReadInt(controller, Offsets.m_hPlayerPawn);
+            if (pawnHandle == 0)
+                pawnHandle = mem.ReadInt(controller, Offsets.m_hPawn);
 
-        private static IEnumerable<int> GetPawnHandles(GameMemory mem, IntPtr controller)
-        {
-            int playerPawn = mem.ReadInt(controller, Offsets.m_hPlayerPawn);
-            if (playerPawn > 0)
-                yield return playerPawn;
+            if (pawnHandle == 0)
+                return false;
 
-            int pawn = mem.ReadInt(controller, Offsets.m_hPawn);
-            if (pawn > 0 && pawn != playerPawn)
-                yield return pawn;
+            pawn = EntityList.ResolveEntityIndex(mem, entitySystem, pawnHandle);
+            if (pawn == IntPtr.Zero)
+                pawn = EntityList.ResolveHandle(mem, entitySystem, pawnHandle);
+
+            return pawn != IntPtr.Zero && pawn != localPawn;
         }
 
         private static void TryAddEntity(
@@ -172,7 +151,7 @@ namespace External_Aimbot
                 controllerAddress = controller,
                 health = health,
                 team = team,
-                origin = PlayerValidation.ReadPawnOrigin(mem, pawn),
+                origin = mem.ReadVec(pawn, Offsets.m_vOldOrigin),
                 view = mem.ReadVec(pawn, Offsets.m_vecViewOffset),
             };
             entity.distance = Vector3.Distance(entity.origin, localPlayer.origin);
