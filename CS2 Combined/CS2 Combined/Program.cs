@@ -361,7 +361,6 @@ try
             localPlayer.pawnAddress,
             entitySystem,
             renderer.skinChangerEnabled,
-            renderer.skinChangerVisualRefresh,
             renderer.GetSkinConfigs(),
             out SkinChangerDebug skinDebug);
         renderer.SetSkinChangerDebug(skinDebug);
@@ -389,9 +388,7 @@ try
         Thread.Sleep(
             renderer.bhopEnabled
                 ? (renderer.bhopSubtick ? 1 : 2)
-                : renderer.miscAllGunsAutoEnabled && InputState.IsAttackHeld(mem)
-                    ? 1
-                    : 5);
+                : 5);
     }
 }
 catch (Exception ex)

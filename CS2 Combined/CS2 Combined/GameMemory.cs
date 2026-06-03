@@ -9,13 +9,6 @@ namespace External_Aimbot
         private const uint ProcessVmRead = 0x0010;
         private const uint ProcessVmWrite = 0x0020;
         private const uint ProcessQueryInformation = 0x0400;
-        private const uint ProcessVmOperation = 0x0008;
-        private const uint MemCommit = 0x1000;
-        private const uint MemRelease = 0x8000;
-        private const uint PageReadwrite = 0x04;
-        private const uint PageExecuteRead = 0x20;
-        private const uint ThreadSetContext = 0x0010;
-        private const uint ThreadQueryInformation = 0x0040;
 
         private readonly IntPtr _handle;
         private Process? _process;
@@ -29,7 +22,7 @@ namespace External_Aimbot
                 ?? throw new InvalidOperationException("cs2.exe is not running.");
 
             _handle = OpenProcess(
-                ProcessVmRead | ProcessVmWrite | ProcessQueryInformation | ProcessVmOperation,
+                ProcessVmRead | ProcessVmWrite | ProcessQueryInformation,
                 false,
                 _process.Id);
             if (_handle == IntPtr.Zero)
@@ -214,75 +207,6 @@ namespace External_Aimbot
             return true;
         }
 
-        public IntPtr AllocateRemote(int size, bool executable = false)
-        {
-            if (_handle == IntPtr.Zero || size <= 0)
-                return IntPtr.Zero;
-
-            return VirtualAllocEx(
-                _handle,
-                IntPtr.Zero,
-                (uint)size,
-                MemCommit,
-                executable ? PageExecuteRead : PageReadwrite);
-        }
-
-        public void FreeRemote(IntPtr address)
-        {
-            if (_handle == IntPtr.Zero || address == IntPtr.Zero)
-                return;
-
-            VirtualFreeEx(_handle, address, 0, MemRelease);
-        }
-
-        public bool TryWriteBytes(IntPtr address, ReadOnlySpan<byte> data)
-        {
-            if (address == IntPtr.Zero || data.IsEmpty)
-                return false;
-
-            byte[] buffer = data.ToArray();
-            return WriteProcessMemory(_handle, address, buffer, buffer.Length, out int written) && written == buffer.Length;
-        }
-
-        public bool TryQueueApcFastcall(IntPtr function, IntPtr argument, uint threadId)
-        {
-            if (_handle == IntPtr.Zero || function == IntPtr.Zero || argument == IntPtr.Zero || threadId == 0)
-                return false;
-
-            byte[] shellcode =
-            [
-                0x48, 0x83, 0xEC, 0x28,
-                0x48, 0xB8,
-                ..BitConverter.GetBytes(function.ToInt64()),
-                0xFF, 0xD0,
-                0x48, 0x83, 0xC4, 0x28,
-                0xC3,
-            ];
-
-            IntPtr remoteCode = AllocateRemote(shellcode.Length, executable: true);
-            if (remoteCode == IntPtr.Zero)
-                return false;
-
-            IntPtr thread = OpenThread(ThreadSetContext | ThreadQueryInformation, false, threadId);
-            if (thread == IntPtr.Zero)
-            {
-                FreeRemote(remoteCode);
-                return false;
-            }
-
-            try
-            {
-                if (!TryWriteBytes(remoteCode, shellcode))
-                    return false;
-
-                return QueueUserAPC(remoteCode, thread, argument) != 0;
-            }
-            finally
-            {
-                CloseHandle(thread);
-            }
-        }
-
         public void Dispose()
         {
             if (_handle != IntPtr.Zero)
@@ -327,26 +251,5 @@ namespace External_Aimbot
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr handle);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr VirtualAllocEx(
-            IntPtr process,
-            IntPtr address,
-            uint size,
-            uint allocationType,
-            uint protect);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool VirtualFreeEx(
-            IntPtr process,
-            IntPtr address,
-            uint size,
-            uint freeType);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr OpenThread(uint desiredAccess, bool inheritHandle, uint threadId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern uint QueueUserAPC(IntPtr pfnApc, IntPtr thread, IntPtr data);
     }
 }

@@ -82,7 +82,6 @@ namespace External_Aimbot
         public MiscDebug MiscState;
 
         public bool skinChangerEnabled = false;
-        public bool skinChangerVisualRefresh = false;
         public int skinEditorWeaponDefIndex = 7;
         public int skinEditorSkinIndex = 1;
         public float skinEditorWear = 0.01f;
@@ -352,7 +351,7 @@ namespace External_Aimbot
             ImGui.Checkbox("No recoil", ref miscNoRecoilEnabled);
             UiTheme.HintMuted("Removes visual recoil while shooting (no aimbot needed)");
             ImGui.Checkbox("All guns auto", ref miscAllGunsAutoEnabled);
-            UiTheme.HintMuted("Hold LMB — semi-auto guns fire repeatedly. Full-auto guns unchanged.");
+            UiTheme.HintMuted("Semi-auto guns only. Uses safe memory pulses — no mouse injection.");
 
             UiTheme.Section("Radar");
             ImGui.Checkbox("Radar reveal", ref miscRadarReveal);
@@ -444,11 +443,9 @@ namespace External_Aimbot
         {
             UiTheme.Section("Core");
             ImGui.Checkbox("Enable skin changer", ref skinChangerEnabled);
-            ImGui.Checkbox("Visual refresh (experimental)", ref skinChangerVisualRefresh);
             UiTheme.HintMuted("1. Pick weapon + skin  2. Save for weapon  3. Enable and spawn with that gun.");
-            UiTheme.HintMuted("Turn on Visual refresh if the gun stays vanilla. Leave off if CS2 crashes.");
-            UiTheme.HintMuted("Client-side visual only. Drop/re-buy weapon if skin does not show.");
-            UiTheme.HintMuted("Gloves are not supported yet.");
+            UiTheme.HintMuted("Client-side only. Drop/re-buy the gun if the skin stays vanilla.");
+            UiTheme.HintMuted("External skins are limited — only you see them. Gloves not supported.");
 
             UiTheme.Section("Editor");
             string weaponLabel = WeaponCatalog.GetName(skinEditorWeaponDefIndex);
@@ -539,13 +536,6 @@ namespace External_Aimbot
             UiTheme.BeginStatusPanel();
             var debug = SkinChangerState;
             UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
-            UiTheme.StatusRow(
-                "Refresh fn",
-                debug.RefreshReady ? "found" : "missing",
-                debug.RefreshReady ? UiTheme.TextSuccess : UiTheme.TextWarning);
-
-            if (debug.SkinsQueued > 0)
-                UiTheme.StatusRow("Queued refresh", debug.SkinsQueued.ToString(), UiTheme.TextInfo);
 
             if (debug.Loadout == null || debug.Loadout.Length == 0)
             {
