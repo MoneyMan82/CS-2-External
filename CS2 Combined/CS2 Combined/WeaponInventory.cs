@@ -26,6 +26,9 @@ namespace External_Aimbot
                 return IntPtr.Zero;
 
             int handle = mem.ReadInt(weaponServices, Offsets.m_hActiveWeapon);
+            if (handle <= 0)
+                return IntPtr.Zero;
+
             return EntityList.ResolveWeaponHandle(mem, entitySystem, handle);
         }
 
@@ -51,16 +54,9 @@ namespace External_Aimbot
                     handles.Add(handle);
             }
 
+            // C_NetworkUtlVectorBase: count at +0, pointer at +8
             int count = mem.ReadInt(weaponServices, Offsets.m_hMyWeapons);
             IntPtr data = mem.ReadPtr(weaponServices, Offsets.m_hMyWeapons + 0x8);
-            if (count > 0 && count <= MaxWeapons && data != IntPtr.Zero)
-            {
-                for (int i = 0; i < count; i++)
-                    AddHandle(mem.ReadInt(data, i * 4));
-            }
-
-            count = mem.ReadInt(weaponServices, Offsets.m_hMyWeapons + 0x8);
-            data = mem.ReadPtr(weaponServices, Offsets.m_hMyWeapons + 0x10);
             if (count > 0 && count <= MaxWeapons && data != IntPtr.Zero)
             {
                 for (int i = 0; i < count; i++)

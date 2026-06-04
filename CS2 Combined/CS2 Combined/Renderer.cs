@@ -68,7 +68,6 @@ namespace External_Aimbot
         public NoRecoilDebug NoRecoilState;
 
         private volatile bool _overlayBlockingInput;
-        private volatile IntPtr _cachedOverlayHandle;
 
         public bool IsOverlayBlockingInput => _overlayBlockingInput;
 
@@ -135,9 +134,6 @@ namespace External_Aimbot
             UiTheme.Apply();
             ImGui.SetNextWindowSize(new Vector2(480f, 0f), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSizeConstraints(new Vector2(420f, 320f), new Vector2(560f, 900f));
-
-            if (window != null)
-                _cachedOverlayHandle = window.Handle;
 
             ImGui.Begin("CS2 Combined", ImGuiWindowFlags.NoCollapse);
             UpdateOverlayInputBlock();
@@ -362,7 +358,8 @@ namespace External_Aimbot
             ImGui.Checkbox("No recoil", ref miscNoRecoilEnabled);
             UiTheme.HintMuted("Removes visual recoil while shooting (no aimbot needed)");
             ImGui.Checkbox("All guns auto", ref miscAllGunsAutoEnabled);
-            UiTheme.HintMuted("Semi-auto only. Enable it, then click in-game before shooting.");
+            UiTheme.HintMuted("Semi-auto only. Hold LMB in CS2 (not on menu). Status shows Release/Press/Shot.");
+            UiTheme.HintMuted("Enable it, click the game, then hold fire with Deagle/P2000/Glock/etc.");
 
             UiTheme.Section("Radar");
             ImGui.Checkbox("Radar reveal", ref miscRadarReveal);
@@ -457,18 +454,10 @@ namespace External_Aimbot
 
         private void UpdateOverlayInputBlock()
         {
-            _overlayBlockingInput =
-                ImGui.GetIO().WantCaptureMouse
-                || ImGui.IsAnyItemActive()
-                || ImGui.IsAnyItemFocused()
-                || ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow);
-
-            if (_cachedOverlayHandle != IntPtr.Zero && GetForegroundWindow() == _cachedOverlayHandle)
-                _overlayBlockingInput = true;
+            // Only block game features while interacting with a widget (checkbox, slider, etc.).
+            // WantCaptureMouse / AnyWindow hover is true over the full-screen overlay and would block forever.
+            _overlayBlockingInput = ImGui.IsAnyItemActive();
         }
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
 
         public void SetMiscDebug(MiscDebug debug) => MiscState = debug;
 

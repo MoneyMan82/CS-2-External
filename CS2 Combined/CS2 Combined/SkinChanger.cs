@@ -30,6 +30,10 @@ namespace External_Aimbot
     internal static class SkinChanger
     {
         private const int ForceFallbackItemId = -1;
+        private const int EconReloadIntervalMs = 250;
+
+        private static long _lastEconReloadMs;
+        private static IntPtr _lastEconPawn;
 
         public static void Process(
             GameMemory mem,
@@ -62,6 +66,7 @@ namespace External_Aimbot
 
             int applied = 0;
             var seen = new HashSet<IntPtr>();
+            bool anyConfigured = false;
 
             foreach (IntPtr weapon in WeaponInventory.EnumerateWeapons(mem, pawn, entitySystem))
             {
@@ -89,31 +94,38 @@ namespace External_Aimbot
                 if (!configured)
                     continue;
 
+                anyConfigured = true;
                 if (ApplySkin(mem, pawn, entitySystem, weapon, itemView, config))
                     applied++;
             }
+
+            if (anyConfigured)
+                MaybeBumpEconReload(mem, pawn);
 
             debug = new SkinChangerDebug
             {
                 WeaponsFound = loadout.Count,
                 SkinsApplied = applied,
-                Status = BuildStatus(loadout.Count, configs.Count, applied),
+                Status = BuildStatus(loadout.Count, configs.Count, applied, anyConfigured),
                 Loadout = loadout.ToArray(),
             };
         }
 
-        private static string BuildStatus(int weaponsFound, int configCount, int applied)
+        private static string BuildStatus(int weaponsFound, int configCount, int applied, bool anyConfigured)
         {
             if (weaponsFound == 0)
-                return "No loadout weapons found — join a match with guns";
+                return "No weapons found — join a match and buy guns";
 
             if (configCount == 0)
                 return "Enabled — save a skin for a weapon first";
 
             if (applied > 0)
-                return $"Updated {applied} weapon(s) — drop/re-buy if still vanilla";
+                return $"Applied {applied} weapon(s) — drop/re-buy if still vanilla";
 
-            return $"Watching {weaponsFound} weapon(s) — kit already set in memory";
+            if (anyConfigured)
+                return $"Keeping {weaponsFound} weapon(s) in fallback mode";
+
+            return "Watching loadout";
         }
 
         private static bool ApplySkin(
@@ -132,17 +144,11 @@ namespace External_Aimbot
             int targetSeed = Math.Clamp(config.Seed, 0, 999);
             ulong meshMask = config.LegacyModel ? 2UL : 1UL;
 
-            bool needsUpdate =
+            bool changed =
                 itemIdHigh != ForceFallbackItemId ||
                 currentPaint != config.PaintKit ||
                 currentSeed != targetSeed ||
                 MathF.Abs(currentWear - targetWear) > 0.001f;
-
-            if (!needsUpdate)
-            {
-                ApplyHudViewModelMesh(mem, pawn, entitySystem, weapon, meshMask);
-                return false;
-            }
 
             mem.WriteInt(itemView, Offsets.m_iItemIDHigh, ForceFallbackItemId);
             mem.WriteInt(itemView, Offsets.m_iItemIDLow, ForceFallbackItemId);
@@ -164,16 +170,21 @@ namespace External_Aimbot
 
             ApplyMeshMask(mem, weapon, meshMask);
             ApplyHudViewModelMesh(mem, pawn, entitySystem, weapon, meshMask);
-            BumpEconReload(mem, pawn);
 
-            return true;
+            return changed;
         }
 
-        private static void BumpEconReload(GameMemory mem, IntPtr pawn)
+        private static void MaybeBumpEconReload(GameMemory mem, IntPtr pawn)
         {
             if (Offsets.m_nCustomEconReloadEventId == 0)
                 return;
 
+            long now = Environment.TickCount64;
+            if (_lastEconPawn == pawn && now - _lastEconReloadMs < EconReloadIntervalMs)
+                return;
+
+            _lastEconPawn = pawn;
+            _lastEconReloadMs = now;
             int eventId = mem.ReadInt(pawn, Offsets.m_nCustomEconReloadEventId);
             mem.WriteInt(pawn, Offsets.m_nCustomEconReloadEventId, eventId + 1);
         }
@@ -197,15 +208,25 @@ namespace External_Aimbot
             if (!IsValidAddress(armsSceneNode))
                 return;
 
-            IntPtr childSceneNode = mem.ReadPtr(armsSceneNode, Offsets.m_pChild);
-            int guard = 0;
-            while (IsValidAddress(childSceneNode) && guard++ < 32)
-            {
-                IntPtr owner = mem.ReadPtr(childSceneNode, Offsets.m_pOwner);
-                if (owner == weapon)
-                    ApplyMeshMaskToSceneNode(mem, childSceneNode, meshMask);
+            WalkSceneChildren(mem, armsSceneNode, weapon, meshMask);
+        }
 
-                childSceneNode = mem.ReadPtr(childSceneNode, Offsets.m_pNextSibling);
+        private static void WalkSceneChildren(
+            GameMemory mem,
+            IntPtr sceneNode,
+            IntPtr weapon,
+            ulong meshMask)
+        {
+            IntPtr child = mem.ReadPtr(sceneNode, Offsets.m_pChild);
+            int guard = 0;
+            while (IsValidAddress(child) && guard++ < 48)
+            {
+                IntPtr owner = mem.ReadPtr(child, Offsets.m_pOwner);
+                if (owner == weapon)
+                    ApplyMeshMaskToSceneNode(mem, child, meshMask);
+
+                WalkSceneChildren(mem, child, weapon, meshMask);
+                child = mem.ReadPtr(child, Offsets.m_pNextSibling);
             }
         }
 
