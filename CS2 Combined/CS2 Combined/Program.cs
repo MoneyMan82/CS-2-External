@@ -196,18 +196,18 @@ try
 
         bool aimKeyHeld = HotkeyInput.IsHeld(renderer.aimbotHotkey);
         bool wantsAim = aimKeyHeld && renderer.aimbot;
-        bool wantsRecoil = (renderer.recoilControl || renderer.recoilPredictor) && weapon.IsAttacking;
+        bool wantsRecoil = renderer.recoilControl && weapon.IsAttacking;
 
+        RecoilControl.PunchAngleScale = renderer.recoilPunchScale;
+        RecoilControl.Mode = renderer.recoilMode;
         RecoilControl.TrackWeapon(weapon);
+        RecoilControl.SyncShotState(weapon);
 
         bool aimbotWroteAngles = false;
 
         if ((wantsAim || wantsRecoil) && localPlayer.pawnAddress != IntPtr.Zero)
         {
             Vector2 currentAngles = commandAngles;
-
-            if (!weapon.IsAttacking || weapon.ShotsFired <= 0)
-                RecoilControl.Reset();
 
             Vector2 finalAngles = currentAngles;
             bool shouldWrite = false;
@@ -243,13 +243,7 @@ try
                     {
                         Vector3 punch = RecoilControl.GetBulletPunch(mem, localPlayer.pawnAddress);
                         targetAngles = Calculate.NormalizeAngles(
-                            RecoilControl.Apply(
-                                targetAngles,
-                                punch,
-                                weapon,
-                                renderer.recoilPredictor,
-                                renderer.recoilControl,
-                                renderer.recoilStrength));
+                            RecoilControl.Apply(targetAngles, punch, weapon, renderer.recoilStrength));
                     }
 
                     finalAngles = Calculate.NormalizeAngles(
@@ -262,13 +256,7 @@ try
             {
                 Vector3 punch = RecoilControl.GetBulletPunch(mem, localPlayer.pawnAddress);
                 finalAngles = Calculate.NormalizeAngles(
-                    RecoilControl.Apply(
-                        finalAngles,
-                        punch,
-                        weapon,
-                        renderer.recoilPredictor,
-                        renderer.recoilControl,
-                        renderer.recoilStrength));
+                    RecoilControl.Apply(finalAngles, punch, weapon, renderer.recoilStrength));
 
                 shouldWrite = true;
             }

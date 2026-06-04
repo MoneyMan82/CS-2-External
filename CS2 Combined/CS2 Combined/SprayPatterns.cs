@@ -12,5 +12,9 @@ namespace External_Aimbot
 
         public static float GetWeaponScale(WeaponClass weaponClass) =>
             WeaponRecoilPresets.GetClassScale(weaponClass);
+
+        public static Vector2 GetPerShotOffset(int weaponId, int shotIndex, WeaponClass weaponClass) =>
+            WeaponRecoilPresets.GetPerShotOffset(weaponId, shotIndex) *
+            GetWeaponScale(weaponClass);
     }
 }

@@ -1,5 +1,5 @@
 {
-  "_note": "Optional local overrides. Plain JSON only — built-in presets are compiled into the app. Add entries with shots [[x,y],...] or inheritId to scale an existing weapon.",
+  "_note": "Optional spray tables for Pattern/Hybrid RCS modes only. Default RCS uses live aim punch from the game (Memory mode). CS:GO pixel scripts are not used for normal play.",
   "conversion": {
     "pixelToYaw": 0.012,
     "pixelToPitch": 0.082

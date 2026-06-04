@@ -45,7 +45,7 @@ namespace External_Aimbot
             Vector3 punchAfterZero = RecoilControl.GetAimPunch(mem, pawn);
             if (punchAfterZero != Vector3.Zero)
             {
-                Vector2 compensated = RecoilControl.ApplyAbsoluteCompensation(viewAngles, punchAfterZero, 1f);
+                Vector2 compensated = RecoilControl.ApplyInstantCompensation(viewAngles, punchAfterZero, 1f);
                 mem.WriteVec(mem.Client, Offsets.dwViewAngles, new Vector3(compensated.Y, compensated.X, 0f));
             }
 

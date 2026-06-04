@@ -35,7 +35,16 @@ namespace External_Aimbot
         {
             get
             {
-                int index = RecoilIndex > 0 ? RecoilIndex : Math.Max(0, ShotsFired - 1);
+                if (ShotsFired <= 0)
+                    return 0;
+
+                int index = Math.Max(0, ShotsFired - 1);
+                if (RecoilIndex > 0)
+                {
+                    int fromWeapon = Math.Max(0, RecoilIndex - 1);
+                    index = Math.Max(index, fromWeapon);
+                }
+
                 return BurstMode ? Math.Min(index, 2) : index;
             }
         }

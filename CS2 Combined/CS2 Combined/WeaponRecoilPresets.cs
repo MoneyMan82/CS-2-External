@@ -48,11 +48,24 @@ namespace External_Aimbot
 
         public static Vector2 GetCumulativeOffset(int weaponId, int shotIndex)
         {
-            if (!TryGet(weaponId, out WeaponRecoilPreset preset) || shotIndex <= 0)
+            if (!TryGet(weaponId, out WeaponRecoilPreset preset) || shotIndex < 0)
+                return Vector2.Zero;
+
+            if (preset.CumulativePattern.Length == 0)
                 return Vector2.Zero;
 
             int idx = Math.Clamp(shotIndex, 0, preset.CumulativePattern.Length - 1);
             return preset.CumulativePattern[idx];
+        }
+
+        public static Vector2 GetPerShotOffset(int weaponId, int shotIndex)
+        {
+            if (shotIndex <= 0)
+                return Vector2.Zero;
+
+            Vector2 current = GetCumulativeOffset(weaponId, shotIndex);
+            Vector2 previous = GetCumulativeOffset(weaponId, shotIndex - 1);
+            return current - previous;
         }
 
         private static Dictionary<int, WeaponRecoilPreset> BuildPresets()

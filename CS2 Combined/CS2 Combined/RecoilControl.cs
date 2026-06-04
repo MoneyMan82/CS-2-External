@@ -2,13 +2,34 @@ using System.Numerics;
 
 namespace External_Aimbot
 {
+    public enum RecoilCompensationMode
+    {
+        /// <summary>Per-frame aim punch delta from game memory (recommended).</summary>
+        Memory,
+        /// <summary>Legacy cumulative spray table only — no live punch.</summary>
+        PatternOnly,
+        /// <summary>Memory delta plus a small pattern assist when punch reads zero.</summary>
+        Hybrid,
+    }
+
     internal static class RecoilControl
     {
-        private const float DefaultRecoilMultiplier = 2f;
-        private static Vector3 _lastPunch;
-        private static int _lastWeaponId = -1;
+        /// <summary>CS2 weapon_recoil_angle_scale default; configurable in menu.</summary>
+        public static float PunchAngleScale = 2f;
 
-        public static void Reset() => _lastPunch = Vector3.Zero;
+        public static RecoilCompensationMode Mode = RecoilCompensationMode.Memory;
+
+        private static Vector3 _lastPunch;
+        private static Vector2 _lastPatternCumulative;
+        private static int _lastWeaponId = -1;
+        private static int _lastShotsFired;
+
+        public static void Reset()
+        {
+            _lastPunch = Vector3.Zero;
+            _lastPatternCumulative = Vector2.Zero;
+            _lastShotsFired = 0;
+        }
 
         public static void TrackWeapon(WeaponContext weapon)
         {
@@ -20,6 +41,21 @@ namespace External_Aimbot
                 _lastWeaponId = weapon.DefinitionIndex;
                 Reset();
             }
+        }
+
+        public static void SyncShotState(WeaponContext weapon)
+        {
+            if (!weapon.IsAttacking || weapon.ShotsFired <= 0)
+            {
+                if (_lastShotsFired > 0)
+                    Reset();
+                return;
+            }
+
+            if (weapon.ShotsFired < _lastShotsFired)
+                _lastPunch = Vector3.Zero;
+
+            _lastShotsFired = weapon.ShotsFired;
         }
 
         public static Vector3 GetAimPunch(GameMemory mem, IntPtr pawn) =>
@@ -42,6 +78,15 @@ namespace External_Aimbot
             return punch;
         }
 
+        public static Vector2 PunchToAngleDelta(Vector3 punchDelta, float strength)
+        {
+            if (punchDelta == Vector3.Zero || strength <= 0f)
+                return Vector2.Zero;
+
+            float scale = PunchAngleScale * strength;
+            return new Vector2(-punchDelta.Y * scale, -punchDelta.X * scale);
+        }
+
         public static Vector2 ApplyDeltaCompensation(Vector2 angles, Vector3 currentPunch, float strength)
         {
             if (strength <= 0f)
@@ -50,55 +95,67 @@ namespace External_Aimbot
             Vector3 delta = currentPunch - _lastPunch;
             _lastPunch = currentPunch;
 
-            if (delta == Vector3.Zero)
+            Vector2 correction = PunchToAngleDelta(delta, strength);
+            if (correction == Vector2.Zero)
                 return angles;
 
-            return ApplyAbsoluteCompensation(angles, delta, strength);
+            return new Vector2(angles.X + correction.X, angles.Y + correction.Y);
         }
 
-        public static Vector2 ApplyAbsoluteCompensation(Vector2 angles, Vector3 aimPunch, float strength)
+        /// <summary>One-shot offset from total punch (e.g. after zeroing punch in No Recoil).</summary>
+        public static Vector2 ApplyInstantCompensation(Vector2 angles, Vector3 aimPunch, float strength)
         {
-            if (aimPunch == Vector3.Zero || strength <= 0f)
+            Vector2 correction = PunchToAngleDelta(aimPunch, strength);
+            if (correction == Vector2.Zero)
                 return angles;
 
-            float scale = DefaultRecoilMultiplier * strength;
-
-            return new Vector2(
-                angles.X - aimPunch.Y * scale,
-                angles.Y - aimPunch.X * scale
-            );
+            return new Vector2(angles.X + correction.X, angles.Y + correction.Y);
         }
 
         public static Vector2 Apply(
             Vector2 angles,
             Vector3 aimPunch,
             WeaponContext weapon,
-            bool usePredictor,
-            bool useControl,
             float strength)
         {
-            if (strength <= 0f)
+            if (strength <= 0f || !weapon.IsValid)
                 return angles;
 
-            if (usePredictor && weapon.SupportsRecoil)
-                return RecoilPredictor.CompensateForHit(angles, aimPunch, weapon, strength);
+            return Mode switch
+            {
+                RecoilCompensationMode.PatternOnly => ApplyPatternOffset(angles, weapon, strength),
+                RecoilCompensationMode.Hybrid => ApplyHybrid(angles, aimPunch, weapon, strength),
+                _ => ApplyDeltaCompensation(angles, aimPunch, strength),
+            };
+        }
 
-            if (!useControl)
+        private static Vector2 ApplyHybrid(Vector2 angles, Vector3 aimPunch, WeaponContext weapon, float strength)
+        {
+            Vector2 result = ApplyDeltaCompensation(angles, aimPunch, strength);
+            if (aimPunch.LengthSquared() > 0.0001f)
+                return result;
+
+            return ApplyPatternCumulativeDelta(result, weapon, strength * 0.5f);
+        }
+
+        private static Vector2 ApplyPatternOffset(Vector2 angles, WeaponContext weapon, float strength) =>
+            ApplyPatternCumulativeDelta(angles, weapon, strength);
+
+        private static Vector2 ApplyPatternCumulativeDelta(Vector2 angles, WeaponContext weapon, float strength)
+        {
+            if (!weapon.SupportsRecoil || strength <= 0f)
                 return angles;
 
-            float punchScale = DefaultRecoilMultiplier * strength;
-            Vector2 spray = weapon.SupportsRecoil
-                ? SprayPatterns.GetCumulativeOffset(weapon.DefinitionIndex, weapon.SprayIndex) *
-                  SprayPatterns.GetWeaponScale(weapon.Class) * strength
-                : Vector2.Zero;
+            Vector2 total = SprayPatterns.GetCumulativeOffset(weapon.DefinitionIndex, weapon.SprayIndex) *
+                           SprayPatterns.GetWeaponScale(weapon.Class) * strength;
 
-            if (aimPunch == Vector3.Zero && spray == Vector2.Zero)
+            Vector2 delta = total - _lastPatternCumulative;
+            _lastPatternCumulative = total;
+
+            if (delta == Vector2.Zero)
                 return angles;
 
-            return new Vector2(
-                angles.X - aimPunch.Y * punchScale - spray.X,
-                angles.Y - aimPunch.X * punchScale - spray.Y
-            );
+            return new Vector2(angles.X - delta.X, angles.Y - delta.Y);
         }
 
         public static bool ShouldCompensate(GameMemory mem, IntPtr pawn, WeaponContext weapon)

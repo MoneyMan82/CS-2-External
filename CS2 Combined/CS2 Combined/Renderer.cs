@@ -21,6 +21,8 @@ namespace External_Aimbot
         public bool aimbot = true;
         public bool recoilControl = true;
         public bool recoilPredictor = true;
+        public float recoilPunchScale = 2f;
+        public RecoilCompensationMode recoilMode = RecoilCompensationMode.Memory;
         public bool visibilityCheck = true;
         public bool mapRaytracing = true;
         public bool drawTargetLines = true;
@@ -350,18 +352,42 @@ namespace External_Aimbot
         {
             UiTheme.Section("Core");
             ImGui.Checkbox("Aimbot", ref aimbot);
-            ImGui.Checkbox("Recoil control", ref recoilControl);
+            ImGui.Checkbox("Recoil control (RCS)", ref recoilControl);
+            UiTheme.HintMuted("Uses live aim punch from CS2 — not old mouse macros");
             if (recoilControl)
-                ImGui.SliderFloat("Recoil strength", ref recoilStrength, 0.5f, 2f);
-            ImGui.Checkbox("Recoil predictor", ref recoilPredictor);
+            {
+                ImGui.SliderFloat("RCS strength", ref recoilStrength, 0.25f, 1.5f);
+                ImGui.SliderFloat("Punch scale", ref recoilPunchScale, 1f, 2.5f);
+                string modeLabel = recoilMode switch
+                {
+                    RecoilCompensationMode.Memory => "Memory (recommended)",
+                    RecoilCompensationMode.PatternOnly => "Pattern table only",
+                    RecoilCompensationMode.Hybrid => "Memory + pattern fallback",
+                    _ => recoilMode.ToString(),
+                };
+                if (ImGui.BeginCombo("RCS mode", modeLabel))
+                {
+                    if (ImGui.Selectable("Memory (recommended)", recoilMode == RecoilCompensationMode.Memory))
+                        recoilMode = RecoilCompensationMode.Memory;
+                    if (ImGui.Selectable("Pattern table only", recoilMode == RecoilCompensationMode.PatternOnly))
+                        recoilMode = RecoilCompensationMode.PatternOnly;
+                    if (ImGui.Selectable("Memory + pattern fallback", recoilMode == RecoilCompensationMode.Hybrid))
+                        recoilMode = RecoilCompensationMode.Hybrid;
+                    ImGui.EndCombo();
+                }
+            }
+
+            ImGui.Checkbox("Landing dot", ref recoilPredictor);
+            UiTheme.HintMuted("Shows where bullets go from current punch (overlay only)");
 
             var weapon = CurrentWeapon;
             if (weapon.IsValid)
             {
-                string preset = weapon.HasRecoilPreset ? "preset loaded" : "generic fallback";
                 UiTheme.StatusRow("Weapon", weapon.Name, UiTheme.TextPrimary);
-                UiTheme.StatusRow("Mode", $"{weapon.FireModeLabel} · {weapon.ShotsFired} shots", UiTheme.TextInfo);
-                UiTheme.HintMuted(preset);
+                UiTheme.StatusRow("Spray", $"shot {weapon.SprayIndex + 1} · {weapon.ShotsFired} fired", UiTheme.TextInfo);
+                UiTheme.HintMuted(weapon.HasRecoilPreset
+                    ? "Pattern table available for Pattern/Hybrid modes"
+                    : "No pattern table — Memory mode still works");
             }
             else
             {
