@@ -481,8 +481,8 @@ namespace External_Aimbot
             UiTheme.Section("Core");
             ImGui.Checkbox("Enable skin changer", ref skinChangerEnabled);
             UiTheme.HintMuted("1. Pick weapon + skin  2. Save for weapon  3. Enable and spawn with that gun.");
-            UiTheme.HintMuted("Client-side only. Drop/re-buy the gun if the skin stays vanilla.");
-            UiTheme.HintMuted("External skins are limited — only you see them. Gloves not supported.");
+            UiTheme.HintMuted("Client-side only (you see it). Drop/re-buy gun if vanilla. Offsets must be current.");
+            UiTheme.HintMuted("Uses safe memory writes only — no downloads, no injection, no remote threads.");
 
             UiTheme.Section("Editor");
             string weaponLabel = WeaponCatalog.GetName(skinEditorWeaponDefIndex);

@@ -49,6 +49,7 @@
         public static int m_iItemIDHigh = 0x1D0;
         public static int m_iItemIDLow = 0x1D4;
         public static int m_bInitialized = 0x1E8;
+        public static int m_bDisallowSOC = 0x1E9;
         public static int m_hMyWeapons = 0x48;
         public static int m_hOwnerEntity = 0x520;
         public static int m_hHudModelArms = 0x1B58;

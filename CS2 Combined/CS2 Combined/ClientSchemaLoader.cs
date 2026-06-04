@@ -47,6 +47,7 @@ namespace External_Aimbot
                 SetField(classes, "C_EconItemView", "m_iItemIDHigh", v => Offsets.m_iItemIDHigh = v);
                 SetField(classes, "C_EconItemView", "m_iItemIDLow", v => Offsets.m_iItemIDLow = v);
                 SetField(classes, "C_EconItemView", "m_bInitialized", v => Offsets.m_bInitialized = v);
+                SetField(classes, "C_EconItemView", "m_bDisallowSOC", v => Offsets.m_bDisallowSOC = v);
                 SetField(classes, "CPlayer_WeaponServices", "m_hMyWeapons", v => Offsets.m_hMyWeapons = v);
                 SetField(classes, "C_EconEntity", "m_nFallbackPaintKit", v => Offsets.m_nFallbackPaintKit = v);
                 SetField(classes, "C_EconEntity", "m_nFallbackSeed", v => Offsets.m_nFallbackSeed = v);
