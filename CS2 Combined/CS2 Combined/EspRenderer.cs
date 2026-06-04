@@ -45,12 +45,20 @@ namespace External_Aimbot
                 if (headDot)
                     drawList.AddCircleFilled(player.HeadScreen, 3f, color);
 
-                float textY = player.HeadScreen.Y - 16f;
-                float textX = player.HeadScreen.X;
+                float centerX = (player.HeadScreen.X + player.FeetScreen.X) * 0.5f;
+                float top = MathF.Min(player.HeadScreen.Y, player.FeetScreen.Y);
+                float bottom = MathF.Max(player.HeadScreen.Y, player.FeetScreen.Y);
+                float textY = top - 18f;
+
+                if (weapon && !string.IsNullOrEmpty(player.WeaponName))
+                {
+                    DrawCenteredText(drawList, centerX, textY, player.WeaponName, color, outline);
+                    textY -= 14f;
+                }
 
                 if (name && !string.IsNullOrEmpty(player.Name))
                 {
-                    DrawCenteredText(drawList, textX, textY, player.Name, color, outline);
+                    DrawCenteredText(drawList, centerX, textY, player.Name, color, outline);
                     textY -= 14f;
                 }
 
@@ -59,22 +67,16 @@ namespace External_Aimbot
                     string hpText = $"{player.Health} HP";
                     if (armor && player.Armor > 0)
                         hpText += $" | {player.Armor} AP";
-                    DrawCenteredText(drawList, textX, textY, hpText, color, outline);
-                    textY -= 14f;
+                    DrawCenteredText(drawList, centerX, textY, hpText, color, outline);
                     DrawHealthBar(drawList, player);
-                }
-
-                if (weapon && !string.IsNullOrEmpty(player.WeaponName))
-                {
-                    DrawCenteredText(drawList, player.FeetScreen.X, player.FeetScreen.Y + 4f, player.WeaponName, color, outline);
                 }
 
                 if (distance)
                 {
                     DrawCenteredText(
                         drawList,
-                        player.FeetScreen.X,
-                        player.FeetScreen.Y + (weapon ? 18f : 4f),
+                        centerX,
+                        bottom + 4f,
                         $"{player.Distance * 0.0254f:0}m",
                         color,
                         outline);
