@@ -19,7 +19,7 @@ namespace External_Aimbot
         private const uint SwpShowwindow = 0x0040;
 
         public bool aimbot = true;
-        public bool recoilControl = true;
+        public bool recoilControl = false;
         public bool recoilPredictor = true;
         public float recoilPunchScale = 2f;
         public RecoilCompensationMode recoilMode = RecoilCompensationMode.PerWeapon;
@@ -352,46 +352,8 @@ namespace External_Aimbot
         {
             UiTheme.Section("Core");
             ImGui.Checkbox("Aimbot", ref aimbot);
-            ImGui.Checkbox("Recoil control (RCS)", ref recoilControl);
-            UiTheme.HintMuted("Each gun: live aim punch + its own spray table index");
-            if (recoilControl)
-            {
-                ImGui.SliderFloat("RCS strength", ref recoilStrength, 0.25f, 1.5f);
-                ImGui.SliderFloat("Punch scale", ref recoilPunchScale, 1f, 2.5f);
-                string modeLabel = recoilMode switch
-                {
-                    RecoilCompensationMode.Memory => "Memory only",
-                    RecoilCompensationMode.PatternOnly => "Pattern table only",
-                    RecoilCompensationMode.PerWeapon => "Per weapon (recommended)",
-                    _ => recoilMode.ToString(),
-                };
-                if (ImGui.BeginCombo("RCS mode", modeLabel))
-                {
-                    if (ImGui.Selectable("Per weapon (recommended)", recoilMode == RecoilCompensationMode.PerWeapon))
-                        recoilMode = RecoilCompensationMode.PerWeapon;
-                    if (ImGui.Selectable("Memory only", recoilMode == RecoilCompensationMode.Memory))
-                        recoilMode = RecoilCompensationMode.Memory;
-                    if (ImGui.Selectable("Pattern table only", recoilMode == RecoilCompensationMode.PatternOnly))
-                        recoilMode = RecoilCompensationMode.PatternOnly;
-                    ImGui.EndCombo();
-                }
-            }
-
             ImGui.Checkbox("Landing dot", ref recoilPredictor);
-            UiTheme.HintMuted("Overlay: punch + this gun's spray shape");
-
-            var weapon = CurrentWeapon;
-            if (weapon.IsValid)
-            {
-                string table = WeaponRecoilPresets.GetPresetLabel(weapon.DefinitionIndex);
-                UiTheme.StatusRow("Weapon", weapon.Name, UiTheme.TextPrimary);
-                UiTheme.StatusRow("Spray", $"bullet {weapon.SprayIndex + 1} · idx {weapon.RecoilIndexFloat:F1}", UiTheme.TextInfo);
-                UiTheme.StatusRow("Pattern", table, weapon.HasRecoilPreset ? UiTheme.TextSuccess : UiTheme.TextMuted);
-            }
-            else
-            {
-                UiTheme.StatusRow("Weapon", "none", UiTheme.TextMuted);
-            }
+            UiTheme.HintMuted("Spray landing marker (configure RCS in Misc)");
 
             UiTheme.Section("Targeting");
             ImGui.Checkbox("Visibility check", ref visibilityCheck);
@@ -480,8 +442,42 @@ namespace External_Aimbot
                 ImGui.SliderInt("Game FOV", ref miscFovValue, 60, 140);
 
             UiTheme.Section("Combat");
+            ImGui.Checkbox("Recoil control (RCS)", ref recoilControl);
+            UiTheme.HintMuted("Per-gun spray compensation while shooting (Misc only, not aimbot)");
+            if (recoilControl)
+            {
+                ImGui.SliderFloat("RCS strength", ref recoilStrength, 0.25f, 1.5f);
+                ImGui.SliderFloat("Punch scale", ref recoilPunchScale, 1f, 2.5f);
+                string modeLabel = recoilMode switch
+                {
+                    RecoilCompensationMode.Memory => "Memory only",
+                    RecoilCompensationMode.PatternOnly => "Pattern table only",
+                    RecoilCompensationMode.PerWeapon => "Per weapon (recommended)",
+                    _ => recoilMode.ToString(),
+                };
+                if (ImGui.BeginCombo("RCS mode", modeLabel))
+                {
+                    if (ImGui.Selectable("Per weapon (recommended)", recoilMode == RecoilCompensationMode.PerWeapon))
+                        recoilMode = RecoilCompensationMode.PerWeapon;
+                    if (ImGui.Selectable("Memory only", recoilMode == RecoilCompensationMode.Memory))
+                        recoilMode = RecoilCompensationMode.Memory;
+                    if (ImGui.Selectable("Pattern table only", recoilMode == RecoilCompensationMode.PatternOnly))
+                        recoilMode = RecoilCompensationMode.PatternOnly;
+                    ImGui.EndCombo();
+                }
+
+                var weapon = CurrentWeapon;
+                if (weapon.IsValid)
+                {
+                    string table = WeaponRecoilPresets.GetPresetLabel(weapon.DefinitionIndex);
+                    UiTheme.StatusRow("Weapon", weapon.Name, UiTheme.TextPrimary);
+                    UiTheme.StatusRow("Spray", $"bullet {weapon.SprayIndex + 1} · idx {weapon.RecoilIndexFloat:F1}", UiTheme.TextInfo);
+                    UiTheme.StatusRow("Pattern", table, weapon.HasRecoilPreset ? UiTheme.TextSuccess : UiTheme.TextMuted);
+                }
+            }
+
             ImGui.Checkbox("No recoil", ref miscNoRecoilEnabled);
-            UiTheme.HintMuted("Removes visual recoil while shooting (no aimbot needed)");
+            UiTheme.HintMuted("Zeros visual punch (separate from RCS above)");
             ImGui.Checkbox("All guns auto", ref miscAllGunsAutoEnabled);
             UiTheme.HintMuted("Semi-auto only. Hold LMB in CS2 (not on menu). Status shows Release/Press/Shot.");
             UiTheme.HintMuted("Enable it, click the game, then hold fire with Deagle/P2000/Glock/etc.");

@@ -204,69 +204,55 @@ try
         RecoilControl.SyncShotState(weapon);
 
         bool aimbotWroteAngles = false;
+        Vector2 viewAnglesToWrite = commandAngles;
+        bool shouldWriteAngles = false;
 
-        if ((wantsAim || wantsRecoil) && localPlayer.pawnAddress != IntPtr.Zero)
+        if (wantsAim && localPlayer.pawnAddress != IntPtr.Zero && entities.Count > 0)
         {
             Vector2 currentAngles = commandAngles;
+            Entity? bestTarget = null;
+            float bestFov = float.MaxValue;
 
-            Vector2 finalAngles = currentAngles;
-            bool shouldWrite = false;
-
-            if (wantsAim && entities.Count > 0)
+            foreach (Entity entity in entities)
             {
-                Entity? bestTarget = null;
-                float bestFov = float.MaxValue;
+                if (renderer.visibilityCheck && !entity.isVisible)
+                    continue;
 
-                foreach (Entity entity in entities)
+                Vector3 entityView = entity.GetAimPosition(mem);
+                Vector2 targetAngles = Calculate.CalculateAngles(playerView, entityView);
+                float fovDistance = Calculate.GetFovDistance(currentAngles, targetAngles);
+
+                if (fovDistance <= renderer.fov && fovDistance < bestFov)
                 {
-                    if (renderer.visibilityCheck && !entity.isVisible)
-                        continue;
-
-                    Vector3 entityView = entity.GetAimPosition(mem);
-                    Vector2 targetAngles = Calculate.CalculateAngles(playerView, entityView);
-                    float fovDistance = Calculate.GetFovDistance(currentAngles, targetAngles);
-
-                    if (fovDistance <= renderer.fov && fovDistance < bestFov)
-                    {
-                        bestFov = fovDistance;
-                        bestTarget = entity;
-                    }
-                }
-
-                if (bestTarget != null)
-                {
-                    Vector3 entityView = bestTarget.GetAimPosition(mem);
-                    Vector2 targetAngles = Calculate.NormalizeAngles(
-                        Calculate.CalculateAngles(playerView, entityView));
-
-                    if (wantsRecoil && RecoilControl.ShouldCompensate(mem, localPlayer.pawnAddress, weapon))
-                    {
-                        Vector3 punch = RecoilControl.GetBulletPunch(mem, localPlayer.pawnAddress);
-                        targetAngles = Calculate.NormalizeAngles(
-                            RecoilControl.Apply(targetAngles, punch, weapon, renderer.recoilStrength));
-                    }
-
-                    finalAngles = Calculate.NormalizeAngles(
-                        Calculate.SmoothAngles(currentAngles, targetAngles, renderer.smoothness));
-                    shouldWrite = true;
+                    bestFov = fovDistance;
+                    bestTarget = entity;
                 }
             }
 
-            if (!shouldWrite && wantsRecoil && RecoilControl.ShouldCompensate(mem, localPlayer.pawnAddress, weapon))
+            if (bestTarget != null)
             {
-                Vector3 punch = RecoilControl.GetBulletPunch(mem, localPlayer.pawnAddress);
-                finalAngles = Calculate.NormalizeAngles(
-                    RecoilControl.Apply(finalAngles, punch, weapon, renderer.recoilStrength));
-
-                shouldWrite = true;
+                Vector3 entityView = bestTarget.GetAimPosition(mem);
+                Vector2 targetAngles = Calculate.NormalizeAngles(
+                    Calculate.CalculateAngles(playerView, entityView));
+                viewAnglesToWrite = Calculate.NormalizeAngles(
+                    Calculate.SmoothAngles(currentAngles, targetAngles, renderer.smoothness));
+                shouldWriteAngles = true;
+                aimbotWroteAngles = aimKeyHeld;
             }
+        }
 
-            if (shouldWrite)
-            {
-                Vector3 newAnglesVec3 = new Vector3(finalAngles.Y, finalAngles.X, 0.0f);
-                mem.WriteVec(mem.Client, Offsets.dwViewAngles, newAnglesVec3);
-                aimbotWroteAngles = wantsAim && aimKeyHeld;
-            }
+        if (wantsRecoil && localPlayer.pawnAddress != IntPtr.Zero &&
+            RecoilControl.ShouldCompensate(mem, localPlayer.pawnAddress, weapon))
+        {
+            Vector3 punch = RecoilControl.GetBulletPunch(mem, localPlayer.pawnAddress);
+            viewAnglesToWrite = Calculate.NormalizeAngles(
+                RecoilControl.Apply(viewAnglesToWrite, punch, weapon, renderer.recoilStrength));
+            shouldWriteAngles = true;
+        }
+
+        if (shouldWriteAngles)
+        {
+            mem.WriteVec(mem.Client, Offsets.dwViewAngles, new Vector3(viewAnglesToWrite.Y, viewAnglesToWrite.X, 0.0f));
         }
 
         TriggerBot.Process(
