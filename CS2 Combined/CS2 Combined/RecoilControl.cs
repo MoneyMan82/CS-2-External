@@ -8,8 +8,8 @@ namespace External_Aimbot
         Memory,
         /// <summary>Legacy cumulative spray table only — no live punch.</summary>
         PatternOnly,
-        /// <summary>Memory delta plus a small pattern assist when punch reads zero.</summary>
-        Hybrid,
+        /// <summary>Live punch + that weapon's spray table (indexed by game recoil index).</summary>
+        PerWeapon,
     }
 
     internal static class RecoilControl
@@ -23,12 +23,14 @@ namespace External_Aimbot
         private static Vector2 _lastPatternCumulative;
         private static int _lastWeaponId = -1;
         private static int _lastShotsFired;
+        private static int _lastSprayIndex = -1;
 
         public static void Reset()
         {
             _lastPunch = Vector3.Zero;
             _lastPatternCumulative = Vector2.Zero;
             _lastShotsFired = 0;
+            _lastSprayIndex = -1;
         }
 
         public static void TrackWeapon(WeaponContext weapon)
@@ -41,6 +43,15 @@ namespace External_Aimbot
                 _lastWeaponId = weapon.DefinitionIndex;
                 Reset();
             }
+        }
+
+        private static void SyncPatternIndex(WeaponContext weapon)
+        {
+            int idx = weapon.SprayIndex;
+            if (idx < _lastSprayIndex || weapon.ShotsFired <= 0)
+                _lastPatternCumulative = Vector2.Zero;
+
+            _lastSprayIndex = idx;
         }
 
         public static void SyncShotState(WeaponContext weapon)
@@ -121,21 +132,23 @@ namespace External_Aimbot
             if (strength <= 0f || !weapon.IsValid)
                 return angles;
 
+            SyncPatternIndex(weapon);
+
             return Mode switch
             {
                 RecoilCompensationMode.PatternOnly => ApplyPatternOffset(angles, weapon, strength),
-                RecoilCompensationMode.Hybrid => ApplyHybrid(angles, aimPunch, weapon, strength),
+                RecoilCompensationMode.PerWeapon => ApplyPerWeapon(angles, aimPunch, weapon, strength),
                 _ => ApplyDeltaCompensation(angles, aimPunch, strength),
             };
         }
 
-        private static Vector2 ApplyHybrid(Vector2 angles, Vector3 aimPunch, WeaponContext weapon, float strength)
+        private static Vector2 ApplyPerWeapon(Vector2 angles, Vector3 aimPunch, WeaponContext weapon, float strength)
         {
             Vector2 result = ApplyDeltaCompensation(angles, aimPunch, strength);
-            if (aimPunch.LengthSquared() > 0.0001f)
+            if (!weapon.HasRecoilPreset)
                 return result;
 
-            return ApplyPatternCumulativeDelta(result, weapon, strength * 0.5f);
+            return ApplyPatternCumulativeDelta(result, weapon, strength * 0.35f);
         }
 
         private static Vector2 ApplyPatternOffset(Vector2 angles, WeaponContext weapon, float strength) =>
@@ -143,11 +156,10 @@ namespace External_Aimbot
 
         private static Vector2 ApplyPatternCumulativeDelta(Vector2 angles, WeaponContext weapon, float strength)
         {
-            if (!weapon.SupportsRecoil || strength <= 0f)
+            if (!weapon.SupportsRecoil || strength <= 0f || !weapon.HasRecoilPreset)
                 return angles;
 
-            Vector2 total = SprayPatterns.GetCumulativeOffset(weapon.DefinitionIndex, weapon.SprayIndex) *
-                           SprayPatterns.GetWeaponScale(weapon.Class) * strength;
+            Vector2 total = SprayPatterns.GetCumulativeOffset(weapon.DefinitionIndex, weapon.SprayIndex) * strength;
 
             Vector2 delta = total - _lastPatternCumulative;
             _lastPatternCumulative = total;

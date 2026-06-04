@@ -62,9 +62,7 @@ namespace External_Aimbot
             if (!weapon.SupportsRecoil || !weapon.HasRecoilPreset)
                 return false;
 
-            Vector2 spray = SprayPatterns.GetCumulativeOffset(weapon.DefinitionIndex, weapon.SprayIndex) *
-                            SprayPatterns.GetWeaponScale(weapon.Class);
-
+            Vector2 spray = SprayPatterns.GetCumulativeOffset(weapon.DefinitionIndex, weapon.SprayIndex);
             Vector2 patternAngles = new Vector2(viewAngles.X + spray.X, viewAngles.Y + spray.Y);
             Vector3 direction = Calculate.DirectionFromAngles(patternAngles.Y, patternAngles.X);
             Vector3 worldPoint = eyePosition + direction * 8192f;

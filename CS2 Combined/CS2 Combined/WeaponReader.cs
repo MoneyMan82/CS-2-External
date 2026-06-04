@@ -22,6 +22,7 @@ namespace External_Aimbot
         public int DefinitionIndex { get; init; }
         public int ShotsFired { get; init; }
         public int RecoilIndex { get; init; }
+        public float RecoilIndexFloat { get; init; }
         public float AccuracyPenalty { get; init; }
         public WeaponClass Class { get; init; }
         public WeaponFireMode FireMode { get; init; }
@@ -31,20 +32,20 @@ namespace External_Aimbot
         public bool BurstMode { get; init; }
         public bool IsAttacking { get; init; }
 
+        /// <summary>Bullet index into this weapon's spray table (from m_flRecoilIndex when available).</summary>
         public int SprayIndex
         {
             get
             {
-                if (ShotsFired <= 0)
+                if (ShotsFired <= 0 && RecoilIndexFloat <= 0.001f)
                     return 0;
 
-                int index = Math.Max(0, ShotsFired - 1);
-                if (RecoilIndex > 0)
-                {
-                    int fromWeapon = Math.Max(0, RecoilIndex - 1);
-                    index = Math.Max(index, fromWeapon);
-                }
+                int fromGame = RecoilIndexFloat > 0.001f
+                    ? Math.Max(0, (int)MathF.Floor(RecoilIndexFloat))
+                    : Math.Max(0, RecoilIndex);
 
+                int fromShots = ShotsFired > 0 ? ShotsFired - 1 : 0;
+                int index = Math.Max(fromGame, fromShots);
                 return BurstMode ? Math.Min(index, 2) : index;
             }
         }
@@ -80,9 +81,9 @@ namespace External_Aimbot
 
             int recoilIndexRaw = mem.ReadInt(weapon, Offsets.m_iRecoilIndex);
             float recoilIndexFloat = BitConverter.Int32BitsToSingle(mem.ReadInt(weapon, Offsets.m_flRecoilIndex));
-            int sprayIndex = recoilIndexRaw > 0
-                ? recoilIndexRaw
-                : Math.Max(0, (int)MathF.Round(recoilIndexFloat));
+            int recoilIndexInt = recoilIndexFloat > 0.001f
+                ? Math.Max(0, (int)MathF.Floor(recoilIndexFloat))
+                : Math.Max(0, recoilIndexRaw);
 
             WeaponClass weaponClass = WeaponCatalog.Classify(defIndex);
             WeaponFireMode fireMode = WeaponFireMode.FullAuto;
@@ -94,7 +95,8 @@ namespace External_Aimbot
                 IsValid = true,
                 DefinitionIndex = defIndex,
                 ShotsFired = mem.ReadInt(pawn, Offsets.m_iShotsFired),
-                RecoilIndex = sprayIndex,
+                RecoilIndex = recoilIndexInt,
+                RecoilIndexFloat = recoilIndexFloat,
                 AccuracyPenalty = BitConverter.Int32BitsToSingle(mem.ReadInt(weapon, Offsets.m_fAccuracyPenalty)),
                 Class = weaponClass,
                 FireMode = fireMode,

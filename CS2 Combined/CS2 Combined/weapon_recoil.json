@@ -1,5 +1,5 @@
 {
-  "_note": "Optional spray tables for Pattern/Hybrid RCS modes only. Default RCS uses live aim punch from the game (Memory mode). CS:GO pixel scripts are not used for normal play.",
+  "_note": "Per-weapon spray overrides. Each entry needs id + shots [[x,y],...] or inheritId with yawScale/pitchScale. Default: built-in table per gun + live aim punch (Per weapon mode).",
   "conversion": {
     "pixelToYaw": 0.012,
     "pixelToPitch": 0.082

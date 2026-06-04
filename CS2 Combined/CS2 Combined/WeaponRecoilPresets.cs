@@ -43,6 +43,9 @@ namespace External_Aimbot
 
         public static bool HasPattern(int weaponId) => Presets.ContainsKey(weaponId);
 
+        public static string GetPresetLabel(int weaponId) =>
+            TryGet(weaponId, out WeaponRecoilPreset preset) ? preset.Name : "none";
+
         public static float GetClassScale(WeaponClass weaponClass) =>
             ClassScales.GetValueOrDefault(weaponClass, 0.75f);
 
@@ -79,6 +82,23 @@ namespace External_Aimbot
                     continue;
 
                 presets[id] = CreatePreset(id, builtIn.Name, builtIn.Class, builtIn.Shots, builtIn.YawScale, builtIn.PitchScale, false);
+            }
+
+            foreach ((int id, int inheritId, string name, WeaponClass cls, float yaw, float pitch) in InheritedPatterns())
+            {
+                if (presets.ContainsKey(id) || !presets.TryGetValue(inheritId, out WeaponRecoilPreset? parent))
+                    continue;
+
+                presets[id] = new WeaponRecoilPreset
+                {
+                    WeaponId = id,
+                    Name = name,
+                    Class = cls,
+                    YawScale = parent.YawScale * yaw,
+                    PitchScale = parent.PitchScale * pitch,
+                    CumulativePattern = ScalePattern(parent.CumulativePattern, yaw, pitch),
+                    FromFile = false,
+                };
             }
 
             return presets;
@@ -233,29 +253,43 @@ namespace External_Aimbot
             float YawScale = 1f,
             float PitchScale = 1f);
 
-        // Pixel patterns transcribed from public Logitech lua scripts (JambonCru/Logitech-CS-GO-NoRecoil).
-        // Converted to degrees at load time — plain text data, no executables downloaded at runtime.
+        // Base spray tables (unique shapes). Other guns inherit with per-weapon scale in InheritedPatterns().
         private static IEnumerable<KeyValuePair<int, BuiltInPattern>> BuiltInPatterns()
         {
             yield return Key(7, "AK-47", WeaponClass.Rifle, Ak47Pixels);
             yield return Key(16, "M4A4", WeaponClass.Rifle, M4A4Pixels);
             yield return Key(60, "M4A1-S", WeaponClass.Rifle, M4A1Pixels, pitchScale: 0.92f);
             yield return Key(10, "FAMAS", WeaponClass.Rifle, FamasPixels, yawScale: 0.95f, pitchScale: 0.9f);
+            yield return Key(13, "Galil AR", WeaponClass.Rifle, GalilPixels);
+            yield return Key(39, "SG 553", WeaponClass.Rifle, Sg553Pixels);
             yield return Key(34, "MP9", WeaponClass.Smg, Mp9Pixels);
             yield return Key(17, "MAC-10", WeaponClass.Smg, Mac10Pixels);
-            yield return Key(13, "Galil AR", WeaponClass.Rifle, Ak47Pixels, yawScale: 0.9f, pitchScale: 0.85f);
-            yield return Key(39, "SG 553", WeaponClass.Rifle, Ak47Pixels, yawScale: 0.93f, pitchScale: 0.9f);
-            yield return Key(8, "AUG", WeaponClass.Rifle, M4A4Pixels, yawScale: 0.92f, pitchScale: 0.88f);
-            yield return Key(23, "MP5-SD", WeaponClass.Smg, Mp9Pixels, yawScale: 0.96f, pitchScale: 0.95f);
-            yield return Key(24, "UMP-45", WeaponClass.Smg, Mac10Pixels, yawScale: 0.98f, pitchScale: 0.95f);
-            yield return Key(19, "P90", WeaponClass.Smg, Mp9Pixels, yawScale: 1.05f, pitchScale: 1f);
-            yield return Key(33, "MP7", WeaponClass.Smg, Mp9Pixels, yawScale: 0.94f, pitchScale: 0.92f);
-            yield return Key(26, "PP-Bizon", WeaponClass.Smg, Mac10Pixels, yawScale: 1.08f, pitchScale: 0.9f);
-            yield return Key(28, "Negev", WeaponClass.Lmg, M4A4Pixels, yawScale: 1.15f, pitchScale: 1.1f);
-            yield return Key(14, "M249", WeaponClass.Lmg, Ak47Pixels, yawScale: 1.1f, pitchScale: 1.05f);
-            yield return Key(1, "Desert Eagle", WeaponClass.Pistol, PistolPixels, yawScale: 0.7f, pitchScale: 0.65f);
-            yield return Key(61, "USP-S", WeaponClass.Pistol, PistolPixels, yawScale: 0.45f, pitchScale: 0.4f);
+            yield return Key(24, "UMP-45", WeaponClass.Smg, Ump45Pixels);
             yield return Key(4, "Glock-18", WeaponClass.Pistol, PistolPixels, yawScale: 0.5f, pitchScale: 0.45f);
+        }
+
+        private static IEnumerable<(int Id, int InheritId, string Name, WeaponClass Class, float Yaw, float Pitch)> InheritedPatterns()
+        {
+            // Rifles
+            yield return (8, 16, "AUG", WeaponClass.Rifle, 0.92f, 0.88f);
+            // SMGs
+            yield return (23, 34, "MP5-SD", WeaponClass.Smg, 0.96f, 0.95f);
+            yield return (19, 34, "P90", WeaponClass.Smg, 1.05f, 1f);
+            yield return (33, 34, "MP7", WeaponClass.Smg, 0.94f, 0.92f);
+            yield return (26, 24, "PP-Bizon", WeaponClass.Smg, 1.08f, 0.9f);
+            // LMGs
+            yield return (28, 16, "Negev", WeaponClass.Lmg, 1.15f, 1.1f);
+            yield return (14, 7, "M249", WeaponClass.Lmg, 1.1f, 1.05f);
+            // Pistols (each has its own scale on the Glock base table)
+            yield return (1, 4, "Desert Eagle", WeaponClass.Pistol, 1.4f, 1.44f);
+            yield return (61, 4, "USP-S", WeaponClass.Pistol, 0.9f, 0.89f);
+            yield return (2, 4, "Dual Berettas", WeaponClass.Pistol, 1.1f, 1.11f);
+            yield return (3, 4, "Five-SeveN", WeaponClass.Pistol, 0.96f, 0.93f);
+            yield return (30, 4, "Tec-9", WeaponClass.Pistol, 1.04f, 1.07f);
+            yield return (32, 4, "P2000", WeaponClass.Pistol, 0.88f, 0.84f);
+            yield return (36, 4, "P250", WeaponClass.Pistol, 1f, 1f);
+            yield return (63, 4, "CZ75-Auto", WeaponClass.Pistol, 1.3f, 1.33f);
+            yield return (64, 4, "R8 Revolver", WeaponClass.Pistol, 1.6f, 1.67f);
         }
 
         private static KeyValuePair<int, BuiltInPattern> Key(
@@ -319,6 +353,35 @@ namespace External_Aimbot
             [3,5],[3,4],[1,2],[1,1],[-2,2],[-2,2],[-2,2],[-2,1],[-1,1],[-1,1],[-1,0],[-1,1],[-3,1],[-5,-1],[-5,-1],[-6,-1],[-7,2],[-8,2],[-2,2],[-2,0],
             [-2,0],[-1,0],[-1,0],[-1,0],[0,0],[0,0],[0,0],[0,0],[-3,0],[-5,0],[-8,0],[-4,0],[0,0],[3,0],[6,0],[6,0],[6,0],[6,0],[3,0],[2,0],
             [3,0],[5,0],[4,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],
+        ];
+
+        // Distinct from AK — tighter early climb, less horizontal swing mid-spray.
+        private static readonly int[][] GalilPixels =
+        [
+            [0,0],[0,0],[0,4],[0,5],[0,6],[0,6],[0,7],[0,6],[0,5],[0,6],[0,7],[-1,7],[0,6],[2,6],[4,6],[5,6],[5,6],[2,6],[1,6],[1,7],
+            [1,7],[1,8],[-2,-3],[-6,-1],[-12,-1],[-12,-1],[-4,0],[-4,0],[-4,0],[-3,0],[-1,1],[3,2],[3,2],[4,1],[-4,1],[-4,1],[-8,1],[-8,0],[-4,0],[-2,0],
+            [0,0],[0,1],[0,1],[-1,1],[5,1],[7,2],[12,2],[13,2],[1,2],[1,2],[1,1],[1,1],[4,1],[5,1],[5,1],[5,1],[5,-1],[8,-1],[8,-2],[8,-3],
+            [0,-4],[0,0],[-4,0],[-4,0],[-4,0],[0,0],[0,1],[0,1],[0,1],[0,2],[0,2],[0,1],[0,1],[2,1],[2,-1],[2,-1],[0,0],[-2,0],[-3,0],
+            [-3,0],[-3,0],[-3,0],[-3,0],[-6,0],[-6,0],[-7,0],[-7,-2],[-12,-3],[-14,-5],[-15,-6],[0,0],[0,0],
+        ];
+
+        // T-side scoped rifle — sharp vertical start, moderate side pull.
+        private static readonly int[][] Sg553Pixels =
+        [
+            [0,0],[0,0],[0,5],[0,6],[0,7],[0,7],[0,8],[0,7],[0,6],[0,7],[0,8],[-2,8],[2,7],[4,7],[5,7],[5,7],[5,7],[1,7],[2,7],[3,7],
+            [3,8],[3,8],[3,9],[-3,-4],[-7,-1],[-14,-1],[-14,-1],[-5,0],[-5,0],[-5,0],[-4,0],[-1,1],[4,2],[4,2],[5,1],[-5,1],[-5,1],[-9,1],[-9,0],[-5,0],[-3,0],
+            [0,0],[0,1],[0,1],[-2,1],[6,1],[8,2],[13,2],[14,2],[1,2],[1,2],[1,1],[1,1],[5,1],[6,1],[6,1],[6,1],[6,-1],[9,-1],[9,-2],[9,-3],
+            [0,-5],[0,0],[-5,0],[-5,0],[-5,0],[0,0],[0,1],[0,2],[0,1],[0,1],[0,2],[0,2],[0,1],[0,1],[3,1],[3,-1],[3,-1],[0,0],[-3,0],[-4,0],
+            [-4,0],[-4,0],[-4,0],[-4,0],[-7,0],[-7,0],[-8,0],[-8,-2],[-14,-3],[-15,-5],[-17,-7],[0,0],[0,0],
+        ];
+
+        // UMP — low horizontal kick, steady climb.
+        private static readonly int[][] Ump45Pixels =
+        [
+            [0,1],[0,2],[0,2],[0,2],[0,2],[0,2],[0,3],[1,4],[2,5],[3,5],[3,5],[3,5],[3,5],[3,5],[0,5],[0,5],[-1,5],[-1,5],[1,4],[2,4],
+            [2,4],[2,3],[1,2],[0,1],[-1,2],[-1,2],[-1,2],[-1,1],[0,1],[0,1],[0,0],[0,1],[-2,1],[-4,-1],[-4,-1],[-5,-1],[-6,2],[-6,2],[-1,2],[-1,0],
+            [-1,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[-2,0],[-4,0],[-6,0],[-3,0],[0,0],[2,0],[4,0],[4,0],[4,0],[4,0],[2,0],[1,0],
+            [2,0],[3,0],[3,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],
         ];
 
         private static readonly Dictionary<int, WeaponRecoilPreset> Presets = BuildPresets();
@@ -390,10 +453,10 @@ namespace External_Aimbot
         public static WeaponClass Classify(int id) => id switch
         {
             9 or 40 or 38 or 11 => WeaponClass.Sniper,
-            7 or 16 or 60 or 10 or 13 or 8 or 39 or 14 => WeaponClass.Rifle,
+            7 or 16 or 60 or 10 or 13 or 8 or 39 => WeaponClass.Rifle,
             17 or 34 or 23 or 24 or 19 or 26 or 33 or 30 => WeaponClass.Smg,
             35 or 25 or 29 or 27 => WeaponClass.Shotgun,
-            28 => WeaponClass.Lmg,
+            28 or 14 => WeaponClass.Lmg,
             1 or 2 or 3 or 4 or 32 or 36 or 61 or 63 or 64 => WeaponClass.Pistol,
             _ => WeaponClass.Unknown,
         };
