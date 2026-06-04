@@ -91,6 +91,10 @@ try
             renderer.SetMiscDebug(default);
             renderer.SetRadarBlips([]);
             renderer.SetSkinChangerDebug(default);
+            renderer.SetUtilityHudContext(new UtilityHudContext
+            {
+                SessionStartTicks = renderer.utilitySessionStartTicks,
+            });
             Thread.Sleep(250);
             continue;
         }
@@ -391,6 +395,51 @@ try
         {
             renderer.SetRadarBlips([]);
         }
+
+        int enemyAlive = 0;
+        int teamAlive = 0;
+        foreach (Entity entity in allPlayers)
+        {
+            if (entity.health <= 0 || entity.pawnAddress == IntPtr.Zero)
+                continue;
+
+            if (entity.team == localPlayer.team && entity.pawnAddress != localPlayer.pawnAddress)
+                teamAlive++;
+            else if (entity.team != 0 && entity.team != localPlayer.team)
+                enemyAlive++;
+        }
+
+        float flashAlpha = Offsets.m_flFlashMaxAlpha != 0
+            ? mem.ReadFloat(localPlayer.pawnAddress, Offsets.m_flFlashMaxAlpha)
+            : 0f;
+
+        int espCount = renderer.espEnabled ? allPlayers.Count : 0;
+        string mapName = MapNameReader.ReadCurrentMap(mem) ?? "";
+        string recoilLabel = weapon.HasRecoilPreset ? $"{weapon.Name} preset" : "";
+
+        renderer.SetUtilityHudContext(new UtilityHudContext
+        {
+            InGame = true,
+            LocalHealth = localPlayer.health,
+            LocalArmor = mem.ReadInt(localPlayer.pawnAddress, Offsets.m_ArmorValue),
+            LocalTeam = localPlayer.team,
+            ShotsFired = weapon.ShotsFired,
+            GameFov = miscDebug.CurrentGameFov,
+            EnemyAlive = enemyAlive,
+            TeamAlive = teamAlive,
+            EspCount = espCount,
+            RadarBlipCount = renderer.miscOverlayRadar ? enemyAlive + teamAlive : 0,
+            CrosshairEntityId = mem.ReadInt(localPlayer.pawnAddress, Offsets.m_iIDEntIndex),
+            FlashAlpha = flashAlpha,
+            ViewAngles = viewAngles,
+            LocalOrigin = localPlayer.origin,
+            MapName = mapName,
+            WeaponName = weapon.Name,
+            RecoilPreset = recoilLabel,
+            Weapon = weapon,
+            Misc = miscDebug,
+            SessionStartTicks = renderer.utilitySessionStartTicks,
+        });
 
         Thread.Sleep(
             renderer.bhopEnabled

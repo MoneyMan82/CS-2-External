@@ -93,6 +93,17 @@ namespace External_Aimbot
             style.Colors[(int)ImGuiCol.TextSelectedBg] = new Vector4(0.18f, 0.83f, 0.72f, 0.35f);
         }
 
+        public static void ApplyCompact()
+        {
+            Apply();
+            ImGuiStylePtr style = ImGui.GetStyle();
+            style.WindowPadding = new Vector2(10f, 8f);
+            style.FramePadding = new Vector2(6f, 4f);
+            style.ItemSpacing = new Vector2(6f, 4f);
+            style.ItemInnerSpacing = new Vector2(4f, 3f);
+            style.ScrollbarSize = 10f;
+        }
+
         public static void DrawMenuHeader()
         {
             ImGuiIOPtr io = ImGui.GetIO();
@@ -101,20 +112,19 @@ namespace External_Aimbot
 
             ImGui.GetWindowDrawList().AddRectFilled(
                 pos,
-                pos + new Vector2(width, 3f),
+                pos + new Vector2(width, 2f),
                 AccentU32,
                 2f);
 
-            ImGui.Dummy(new Vector2(0f, 10f));
+            ImGui.Dummy(new Vector2(0f, 6f));
 
             ImGui.PushStyleColor(ImGuiCol.Text, Accent);
-            ImGui.SetWindowFontScale(1.08f);
+            ImGui.SetWindowFontScale(1.02f);
             ImGui.Text("CS2 COMBINED");
             ImGui.SetWindowFontScale(1f);
             ImGui.PopStyleColor();
 
-            ImGui.TextColored(TextMuted, "External overlay  ·  v1");
-            ImGui.Spacing();
+            ImGui.TextColored(TextMuted, $"Compact menu · {UtilityCatalog.All.Count} tools");
         }
 
         public static void Section(string title)

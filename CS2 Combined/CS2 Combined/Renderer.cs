@@ -95,6 +95,11 @@ namespace External_Aimbot
         public SkinChangerDebug SkinChangerState;
         private readonly Dictionary<int, SkinConfig> _skinConfigs = new();
 
+        private readonly UtilityStore utilityStore = UtilityStore.CreateWithDefaults();
+        public long utilitySessionStartTicks = Environment.TickCount64;
+        private string _utilitySearch = "";
+        private UtilityHudContext _utilityHudContext;
+
         private readonly object _overlayLock = new();
         private List<OverlayLine> _overlayLines = [];
         private List<EspPlayerData> _espPlayers = [];
@@ -123,7 +128,7 @@ namespace External_Aimbot
         {
             string fontPath = Path.Combine(AppContext.BaseDirectory, "fonts", "FredokaOne-Regular.ttf");
             if (File.Exists(fontPath))
-                ReplaceFont(fontPath, 17, FontGlyphRangeType.English);
+                ReplaceFont(fontPath, 14, FontGlyphRangeType.English);
         }
 
         protected override void Render()
@@ -131,9 +136,13 @@ namespace External_Aimbot
             SyncOverlayToGameWindow();
             KeepOverlayOnTop();
 
-            UiTheme.Apply();
-            ImGui.SetNextWindowSize(new Vector2(480f, 0f), ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowSizeConstraints(new Vector2(420f, 320f), new Vector2(560f, 900f));
+            UiTheme.ApplyCompact();
+
+            var io = ImGui.GetIO();
+            float menuW = Math.Clamp(io.DisplaySize.X * 0.24f, 260f, 340f);
+            float menuH = Math.Clamp(io.DisplaySize.Y * 0.32f, 200f, 280f);
+            ImGui.SetNextWindowSize(new Vector2(menuW, menuH), ImGuiCond.Always);
+            ImGui.SetNextWindowSizeConstraints(new Vector2(240f, 180f), new Vector2(360f, 320f));
 
             ImGui.Begin("CS2 Combined", ImGuiWindowFlags.NoCollapse);
             UpdateOverlayInputBlock();
@@ -142,6 +151,12 @@ namespace External_Aimbot
 
             if (ImGui.BeginTabBar("MainTabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton))
             {
+                if (ImGui.BeginTabItem("Tools"))
+                {
+                    DrawToolsTab();
+                    ImGui.EndTabItem();
+                }
+
                 if (ImGui.BeginTabItem("Aim"))
                 {
                     DrawAimbotTab();
@@ -187,11 +202,96 @@ namespace External_Aimbot
 
             ImGui.End();
 
-            DrawFovCircle();
-            DrawTargetLines();
-            DrawRecoilPrediction();
+            bool drawFov = showFovCircle || utilityStore.IsOn("pr_show_fov_circle");
+            if (drawFov)
+                DrawFovCircle();
+
+            if (utilityStore.IsOn("pr_show_prediction") || (recoilPredictor && HasPredictionPoint))
+                DrawRecoilPrediction();
+
+            if (utilityStore.IsOn("pr_show_target_lines") || drawTargetLines)
+                DrawTargetLines();
+
             DrawEsp();
             DrawOverlayRadar();
+            UtilityHud.Draw(utilityStore, _utilityHudContext);
+        }
+
+        public void SetUtilityHudContext(UtilityHudContext ctx) => _utilityHudContext = ctx;
+
+        private void DrawToolsTab()
+        {
+            int total = UtilityCatalog.All.Count;
+            int enabled = utilityStore.EnabledCount;
+            ImGui.TextColored(UiTheme.TextMuted, $"{enabled} / {total} on");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("All off"))
+            {
+                foreach (UtilityEntry entry in UtilityCatalog.All)
+                {
+                    if (entry.Kind == UtilityKind.Toggle)
+                        utilityStore.SetOn(entry.Id, false);
+                }
+            }
+
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Reset"))
+            {
+                UtilityStore fresh = UtilityStore.CreateWithDefaults();
+                foreach (UtilityEntry entry in UtilityCatalog.All)
+                {
+                    if (entry.Kind == UtilityKind.Toggle)
+                        utilityStore.SetOn(entry.Id, fresh.IsOn(entry.Id));
+                    else
+                        utilityStore.SetFloat(entry.Id, fresh.GetFloat(entry.Id, entry.DefaultFloat));
+                }
+            }
+
+            ImGui.SetNextItemWidth(-1f);
+            ImGui.InputTextWithHint("##util_search", "Search...", ref _utilitySearch, 64);
+            string filter = _utilitySearch.Trim();
+
+            float scrollH = Math.Max(100f, ImGui.GetContentRegionAvail().Y);
+            ImGui.BeginChild("##tools_scroll", new Vector2(-1f, scrollH), ImGuiChildFlags.None);
+
+            foreach (string category in UtilityCatalog.Categories)
+            {
+                List<UtilityEntry> entries = UtilityCatalog.All
+                    .Where(e => e.Category == category)
+                    .Where(e => filter.Length == 0
+                        || e.Label.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                        || e.Id.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (entries.Count == 0)
+                    continue;
+
+                if (!ImGui.CollapsingHeader($"{category} ({entries.Count})##util_cat", ImGuiTreeNodeFlags.DefaultOpen))
+                    continue;
+
+                foreach (UtilityEntry entry in entries)
+                {
+                    if (entry.Kind == UtilityKind.Toggle)
+                    {
+                        bool value = utilityStore.IsOn(entry.Id);
+                        if (ImGui.Checkbox(entry.Label, ref value))
+                        {
+                            if (entry.Id.StartsWith("ch_style_", StringComparison.Ordinal))
+                                utilityStore.SetCrosshairStyle(int.Parse(entry.Id["ch_style_".Length..]));
+                            else
+                                utilityStore.SetOn(entry.Id, value);
+                        }
+                    }
+                    else
+                    {
+                        float value = utilityStore.GetFloat(entry.Id, entry.DefaultFloat);
+                        if (ImGui.SliderFloat(entry.Label, ref value, entry.Min, entry.Max))
+                            utilityStore.SetFloat(entry.Id, value);
+                    }
+                }
+            }
+
+            ImGui.EndChild();
         }
 
         private void DrawEspTab()
@@ -228,7 +328,7 @@ namespace External_Aimbot
                 players,
                 espBox,
                 espBones,
-                espName,
+                espName && !utilityStore.IsOn("st_hide_names"),
                 espHealth,
                 espWeapon,
                 espDistance,
