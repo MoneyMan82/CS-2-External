@@ -35,7 +35,21 @@ namespace External_Aimbot
         public float recoilStrength = 1f;
         public bool HasPredictionPoint;
         public Vector2 PredictionPoint;
-        public WeaponContext CurrentWeapon;
+        private WeaponContext _currentWeapon;
+
+        public WeaponContext CurrentWeapon
+        {
+            get
+            {
+                lock (_overlayLock)
+                    return _currentWeapon;
+            }
+            set
+            {
+                lock (_overlayLock)
+                    _currentWeapon = value;
+            }
+        }
 
         public bool triggerBot = false;
         public Hotkey triggerHotkey = Hotkey.Mouse5;
@@ -386,7 +400,7 @@ namespace External_Aimbot
             HotkeyInput.DrawSelector("Trigger hotkey", ref triggerHotkey);
             UiTheme.HintMuted($"Hold {HotkeyInput.Label(triggerHotkey)} while aiming at a target");
 
-            UiTheme.BeginStatusPanel();
+            UiTheme.BeginStatusPanel("trigger");
             var debug = TriggerDebug;
             UiTheme.StatusRow("Hotkey", debug.HotkeyHeld ? "HELD" : "not held",
                 debug.HotkeyHeld ? UiTheme.TextSuccess : UiTheme.TextMuted);
@@ -416,7 +430,7 @@ namespace External_Aimbot
             else if (bhopSubtick)
                 UiTheme.HintMuted("Fast subtick pulses with 1 ms update rate");
 
-            UiTheme.BeginStatusPanel();
+            UiTheme.BeginStatusPanel("bhop");
             var debug = BhopState;
             UiTheme.StatusRow("Space", debug.SpaceHeld ? "HELD" : "not held",
                 debug.SpaceHeld ? UiTheme.TextSuccess : UiTheme.TextMuted);
@@ -435,6 +449,9 @@ namespace External_Aimbot
 
         private void DrawMiscTab()
         {
+            float scrollH = Math.Max(100f, ImGui.GetContentRegionAvail().Y);
+            ImGui.BeginChild("##misc_scroll", new Vector2(-1f, scrollH), ImGuiChildFlags.None);
+
             UiTheme.Section("Visual");
             ImGui.Checkbox("Anti flash", ref antiFlashEnabled);
             ImGui.Checkbox("FOV changer", ref miscFovChanger);
@@ -455,7 +472,7 @@ namespace External_Aimbot
                     RecoilCompensationMode.PerWeapon => "Per weapon (recommended)",
                     _ => recoilMode.ToString(),
                 };
-                if (ImGui.BeginCombo("RCS mode", modeLabel))
+                if (ImGui.BeginCombo("RCS mode##misc_rcs_mode", modeLabel))
                 {
                     if (ImGui.Selectable("Per weapon (recommended)", recoilMode == RecoilCompensationMode.PerWeapon))
                         recoilMode = RecoilCompensationMode.PerWeapon;
@@ -466,7 +483,7 @@ namespace External_Aimbot
                     ImGui.EndCombo();
                 }
 
-                var weapon = CurrentWeapon;
+                WeaponContext weapon = CurrentWeapon;
                 if (weapon.IsValid)
                 {
                     string table = WeaponRecoilPresets.GetPresetLabel(weapon.DefinitionIndex);
@@ -497,7 +514,7 @@ namespace External_Aimbot
             ImGui.Checkbox("Bomb timer", ref miscBombTimer);
             ImGui.Checkbox("Spectator list", ref miscSpectatorList);
 
-            UiTheme.BeginStatusPanel();
+            UiTheme.BeginStatusPanel("misc");
             var flash = AntiFlashState;
             UiTheme.StatusRow("Flash", $"{flash.FlashAlpha:F0}", UiTheme.TextPrimary);
             UiTheme.StatusRow("Anti-flash", flash.Status, UiTheme.TextMuted);
@@ -523,7 +540,7 @@ namespace External_Aimbot
                     auto.ShotCount > 0 ? UiTheme.TextSuccess : UiTheme.TextMuted);
             }
 
-            var misc = MiscState;
+            MiscDebug misc = GetMiscDebugSnapshot();
             if (miscBombTimer)
             {
                 if (misc.BombPlanted)
@@ -546,11 +563,11 @@ namespace External_Aimbot
 
             if (miscSpectatorList)
             {
-                if (misc.SpectatorCount > 0 && misc.Spectators != null)
+                if (misc.SpectatorCount > 0 && misc.Spectators is { Length: > 0 })
                 {
                     UiTheme.StatusRow("Spectators", misc.SpectatorCount.ToString(), UiTheme.TextWarning);
                     foreach (string name in misc.Spectators)
-                        ImGui.BulletText(name);
+                        ImGui.BulletText(string.IsNullOrEmpty(name) ? "?" : name);
                 }
                 else
                 {
@@ -559,6 +576,7 @@ namespace External_Aimbot
             }
 
             UiTheme.EndStatusPanel();
+            ImGui.EndChild();
         }
 
         public void SetAntiFlashDebug(AntiFlashDebug debug) => AntiFlashState = debug;
@@ -580,7 +598,25 @@ namespace External_Aimbot
             _overlayBlockingInput = ImGui.IsAnyItemActive();
         }
 
-        public void SetMiscDebug(MiscDebug debug) => MiscState = debug;
+        public void SetMiscDebug(MiscDebug debug)
+        {
+            lock (_overlayLock)
+            {
+                MiscState = debug;
+            }
+        }
+
+        private MiscDebug GetMiscDebugSnapshot()
+        {
+            lock (_overlayLock)
+            {
+                MiscDebug misc = MiscState;
+                if (misc.Spectators == null || misc.Spectators.Length == 0)
+                    return misc;
+
+                return misc with { Spectators = (string[])misc.Spectators.Clone() };
+            }
+        }
 
         public IReadOnlyDictionary<int, SkinConfig> GetSkinConfigs() => _skinConfigs;
 
@@ -680,7 +716,7 @@ namespace External_Aimbot
                 }
             }
 
-            UiTheme.BeginStatusPanel();
+            UiTheme.BeginStatusPanel("skins");
             var debug = SkinChangerState;
             UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
 

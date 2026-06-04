@@ -141,12 +141,12 @@ namespace External_Aimbot
         public static void HintMuted(string text) =>
             ImGui.TextColored(TextMuted, text);
 
-        public static void BeginStatusPanel()
+        public static void BeginStatusPanel(string panelId)
         {
             ImGui.Spacing();
             ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.11f, 0.13f, 0.17f, 1f));
             ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 10f);
-            ImGui.BeginChild("##status_panel", new Vector2(-1f, 0f), ImGuiChildFlags.None);
+            ImGui.BeginChild($"##status_{panelId}", new Vector2(-1f, 0f), ImGuiChildFlags.None);
             ImGui.TextColored(Accent, "STATUS");
             ImGui.Spacing();
         }
