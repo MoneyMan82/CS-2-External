@@ -208,6 +208,27 @@ namespace External_Aimbot
 
             OverlaySettingsPanel.DrawFab(Settings);
             OverlaySettingsPanel.DrawWindow(Settings);
+
+            ApplyPassThroughInput();
+        }
+
+        /// <summary>
+        /// Only eat mouse clicks when the user is clicking/dragging UI — not when the cursor merely hovers a menu.
+        /// ClickableTransparentOverlay uses io.WantCaptureMouse to toggle WS_EX_TRANSPARENT.
+        /// </summary>
+        private static void ApplyPassThroughInput()
+        {
+            ImGuiIOPtr io = ImGui.GetIO();
+
+            bool clickingUi =
+                ImGui.IsAnyItemActive() ||
+                (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows) &&
+                 (ImGui.IsMouseDown(ImGuiMouseButton.Left) ||
+                  ImGui.IsMouseDown(ImGuiMouseButton.Right) ||
+                  ImGui.IsMouseDown(ImGuiMouseButton.Middle)));
+
+            io.WantCaptureMouse = clickingUi;
+            io.WantCaptureKeyboard = ImGui.IsAnyItemActive();
         }
 
         public void SetUtilityHudContext(UtilityHudContext ctx) => _utilityHudContext = ctx;
