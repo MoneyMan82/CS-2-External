@@ -101,14 +101,15 @@ namespace External_Aimbot
         public int miscFovValue = 90;
         public MiscDebug MiscState;
 
-        public bool reconEnabled = false;
-        public bool reconEdgeGlow = true;
-        public bool reconThreatArrows = true;
-        public bool reconExposureMeter = true;
-        public bool reconUseMapMesh = true;
-        public AimbotGameMode reconGameMode = AimbotGameMode.Casual;
-        private bool _reconTeamPlaceholder;
-        private ReconState _reconState;
+        public bool intelEnabled = false;
+        public bool intelShowTrails = true;
+        public float intelDecaySeconds = 8f;
+        public float intelRadarSize = 112f;
+        public float intelRadarRange = 2500f;
+        public bool intelBottomLeft = true;
+        public AimbotGameMode intelGameMode = AimbotGameMode.Casual;
+        private bool _intelTeamPlaceholder;
+        private IntelState _intelState;
 
         private readonly UtilityStore utilityStore = UtilityStore.CreateWithDefaults();
         public long utilitySessionStartTicks = Environment.TickCount64;
@@ -202,9 +203,9 @@ namespace External_Aimbot
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Recon"))
+                if (ImGui.BeginTabItem("Intel"))
                 {
-                    DrawReconTab();
+                    DrawIntelTab();
                     ImGui.EndTabItem();
                 }
 
@@ -229,7 +230,7 @@ namespace External_Aimbot
 
             DrawEsp();
             DrawOverlayRadar();
-            DrawRecon();
+            DrawIntel();
             UtilityHud.Draw(utilityStore, _utilityHudContext);
         }
 
@@ -579,83 +580,48 @@ namespace External_Aimbot
             ImGui.EndChild();
         }
 
-        private void DrawReconTab()
+        private void DrawIntelTab()
         {
             float scrollH = Math.Max(100f, ImGui.GetContentRegionAvail().Y);
-            ImGui.BeginChild("##recon_scroll", new Vector2(-1f, scrollH), ImGuiChildFlags.None);
+            ImGui.BeginChild("##intel_scroll", new Vector2(-1f, scrollH), ImGuiChildFlags.None);
 
             UiTheme.Section("Core");
-            ImGui.Checkbox("Recon", ref reconEnabled);
-            UiTheme.HintMuted("Alerts when an enemy has line of sight to you (opposite of ESP).");
+            ImGui.Checkbox("Intel radar", ref intelEnabled);
+            UiTheme.HintMuted("Remembers last seen enemy positions after they duck or break LOS.");
 
-            UiTheme.Section("Overlay");
-            ImGui.Checkbox("Exposure frame", ref reconEdgeGlow);
-            ImGui.Checkbox("Threat ticks", ref reconThreatArrows);
-            ImGui.Checkbox("Status label", ref reconExposureMeter);
+            UiTheme.Section("Radar");
+            ImGui.Checkbox("Movement trails", ref intelShowTrails);
+            ImGui.Checkbox("Bottom-left (off = top-right)", ref intelBottomLeft);
+            ImGui.SliderFloat("Memory (sec)", ref intelDecaySeconds, 3f, 20f);
+            ImGui.SliderFloat("Radar size", ref intelRadarSize, 80f, 180f);
+            ImGui.SliderFloat("Radar range", ref intelRadarRange, 1000f, 5000f);
 
-            UiTheme.Section("Detection");
-            ImGui.Checkbox("Map mesh (.tri)", ref reconUseMapMesh);
-            UiTheme.HintMuted("Wall-aware when mesh is loaded; otherwise spotted + facing.");
-            UiTheme.GameModeRadio("##recon", ref reconGameMode, showTeamOption: false, ref _reconTeamPlaceholder);
+            UiTheme.Section("Targets");
+            UiTheme.GameModeRadio("##intel", ref intelGameMode, showTeamOption: false, ref _intelTeamPlaceholder);
 
-            UiTheme.BeginStatusPanel("recon");
-            ReconState recon = GetReconSnapshot();
+            UiTheme.BeginStatusPanel("intel");
+            IntelState intel = GetIntelSnapshot();
 
-            if (!reconEnabled)
+            if (!intelEnabled)
             {
                 UiTheme.StatusRow("State", "Off", UiTheme.TextMuted);
             }
-            else if (recon.ThreatCount == 0)
-            {
-                UiTheme.StatusRow("Exposure", "Hidden", UiTheme.TextSuccess);
-            }
             else
             {
-                string exposure = recon.WorstBand switch
-                {
-                    ExposureBand.Wide => "Wide",
-                    ExposureBand.Peeking => "Peek",
-                    _ => "—",
-                };
-                Vector4 exposureColor = recon.WorstBand switch
-                {
-                    ExposureBand.Wide => UiTheme.TextDanger,
-                    ExposureBand.Peeking => UiTheme.TextWarning,
-                    _ => UiTheme.TextSuccess,
-                };
-                UiTheme.StatusRow("Exposure", exposure, exposureColor);
+                UiTheme.StatusRow("Live", intel.LiveCount.ToString(), UiTheme.TextDanger);
+                UiTheme.StatusRow("Ghosts", intel.GhostCount.ToString(), UiTheme.TextWarning);
+                UiTheme.StatusRow("Memory", $"{intelDecaySeconds:0.#}s", UiTheme.TextInfo);
             }
 
-            UiTheme.StatusRow("Threats", recon.ThreatCount.ToString(), UiTheme.TextPrimary);
-            UiTheme.StatusRow("Method", string.IsNullOrEmpty(recon.Method) ? "—" : recon.Method, UiTheme.TextInfo);
-            UiTheme.StatusRow(
-                "Mesh",
-                recon.MapMeshActive ? "loaded" : "fallback",
-                recon.MapMeshActive ? UiTheme.TextSuccess : UiTheme.TextWarning);
-
-            string map = MapCollision.CurrentMap;
-            if (string.IsNullOrEmpty(map))
-                UiTheme.StatusRow("Map", "unknown", UiTheme.TextWarning);
-            else if (MapCollision.IsLoading)
-                UiTheme.StatusRow("Map", $"{map} · loading", UiTheme.TextWarning);
-            else if (MapCollision.IsLoaded)
-                UiTheme.StatusRow("Map", map, UiTheme.TextPrimary);
-            else
-            {
-                UiTheme.StatusRow("Map", map, UiTheme.TextPrimary);
-                UiTheme.HintMuted($"Add maps\\{map}.tri for wall checks.");
-            }
-
-            if (recon.Threats is { Length: > 0 })
+            if (intel.Blips is { Length: > 0 })
             {
                 ImGui.Spacing();
-                ImGui.TextColored(UiTheme.TextMuted, "NEARBY");
-                foreach (ReconThreat threat in recon.Threats.OrderBy(t => t.Distance).Take(5))
+                ImGui.TextColored(UiTheme.TextMuted, "TRACKING");
+                foreach (IntelGhostBlip blip in intel.Blips.Take(6))
                 {
-                    Vector4 bandColor = threat.Band == ExposureBand.Wide
-                        ? UiTheme.TextDanger
-                        : UiTheme.TextWarning;
-                    ImGui.TextColored(bandColor, $"  {threat.Distance,5:0.#}m  ·  {(threat.Band == ExposureBand.Wide ? "wide" : "peek")}");
+                    string tag = blip.IsLive ? "live" : $"{blip.AgeSeconds:0.#}s ago";
+                    Vector4 color = blip.IsLive ? UiTheme.TextDanger : UiTheme.TextWarning;
+                    ImGui.TextColored(color, $"  ·  {tag}");
                 }
             }
 
@@ -663,27 +629,32 @@ namespace External_Aimbot
             ImGui.EndChild();
         }
 
-        public void SetReconState(ReconState state)
+        public void SetIntelState(IntelState state)
         {
             lock (_overlayLock)
             {
-                _reconState = state;
+                _intelState = state;
             }
         }
 
-        private ReconState GetReconSnapshot()
+        private IntelState GetIntelSnapshot()
         {
             lock (_overlayLock)
-                return _reconState;
+                return _intelState;
         }
 
-        private void DrawRecon()
+        private void DrawIntel()
         {
-            if (!reconEnabled)
+            if (!intelEnabled)
                 return;
 
-            ReconState state = GetReconSnapshot();
-            ReconOverlay.Draw(state, reconEdgeGlow, reconThreatArrows, reconExposureMeter);
+            IntelState state = GetIntelSnapshot();
+            IntelOverlay.Draw(
+                state,
+                intelRadarSize,
+                16f,
+                intelShowTrails,
+                intelBottomLeft);
         }
 
         public void SetAntiFlashDebug(AntiFlashDebug debug) => AntiFlashState = debug;
