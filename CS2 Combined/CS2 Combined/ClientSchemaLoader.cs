@@ -126,5 +126,11 @@ namespace External_Aimbot
             if (fields.TryGetProperty(fieldName, out JsonElement value) && value.TryGetInt32(out int offset))
                 setter(offset);
         }
+
+        public static bool HasSkinOffsets =>
+            Offsets.m_nFallbackPaintKit != 0 &&
+            Offsets.m_hMyWeapons != 0 &&
+            Offsets.m_AttributeManager != 0 &&
+            Offsets.m_iItemIDHigh != 0;
     }
 }

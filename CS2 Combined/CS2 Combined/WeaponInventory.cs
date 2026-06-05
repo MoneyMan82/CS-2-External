@@ -54,17 +54,27 @@ namespace External_Aimbot
                     handles.Add(handle);
             }
 
-            // C_NetworkUtlVectorBase: count at +0, pointer at +8
-            int count = mem.ReadInt(weaponServices, Offsets.m_hMyWeapons);
-            IntPtr data = mem.ReadPtr(weaponServices, Offsets.m_hMyWeapons + 0x8);
-            if (count > 0 && count <= MaxWeapons && data != IntPtr.Zero)
-            {
-                for (int i = 0; i < count; i++)
-                    AddHandle(mem.ReadInt(data, i * 4));
-            }
-
             AddHandle(mem.ReadInt(weaponServices, Offsets.m_hActiveWeapon));
+
+            TryReadVectorHandles(mem, weaponServices, Offsets.m_hMyWeapons, AddHandle);
+            TryReadVectorHandles(mem, weaponServices, Offsets.m_hMyWeapons + 0x10, AddHandle);
+
             return handles;
+        }
+
+        private static void TryReadVectorHandles(
+            GameMemory mem,
+            IntPtr weaponServices,
+            int vectorOffset,
+            Action<int> addHandle)
+        {
+            int count = mem.ReadInt(weaponServices, vectorOffset);
+            IntPtr data = mem.ReadPtr(weaponServices, vectorOffset + 0x8);
+            if (count <= 0 || count > MaxWeapons || data == IntPtr.Zero)
+                return;
+
+            for (int i = 0; i < count; i++)
+                addHandle(mem.ReadInt(data, i * 4));
         }
     }
 }

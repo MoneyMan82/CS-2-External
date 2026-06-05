@@ -14,6 +14,8 @@ try
 
     string schemaPath = Path.Combine(AppContext.BaseDirectory, "client_dll.json");
     ClientSchemaLoader.TryLoad(schemaPath);
+    if (!ClientSchemaLoader.HasSkinOffsets)
+        await SchemaUpdater.TryUpdateAsync(schemaPath);
 
     string buttonsPath = Path.Combine(AppContext.BaseDirectory, "buttons.json");
     ButtonsLoader.TryLoadFromFile(buttonsPath);

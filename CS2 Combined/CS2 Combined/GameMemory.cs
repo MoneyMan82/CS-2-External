@@ -247,7 +247,7 @@ namespace External_Aimbot
                 try
                 {
                     uint wait = WaitForSingleObject(thread, (uint)timeoutMs);
-                    return wait is 0 or 0x80; // WAIT_OBJECT_0 or WAIT_TIMEOUT (still attempted)
+                    return wait == 0;
                 }
                 finally
                 {

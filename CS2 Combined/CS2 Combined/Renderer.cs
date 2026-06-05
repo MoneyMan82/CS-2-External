@@ -724,6 +724,10 @@ namespace External_Aimbot
             var debug = SkinChangerState;
             UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
             UiTheme.StatusRow(
+                "Schema",
+                debug.SchemaOffsetsOk ? "OK" : "missing",
+                debug.SchemaOffsetsOk ? UiTheme.TextSuccess : UiTheme.TextWarning);
+            UiTheme.StatusRow(
                 "Refresh sig",
                 debug.RegenerateFound ? "found" : "missing",
                 debug.RegenerateFound ? UiTheme.TextSuccess : UiTheme.TextWarning);
@@ -737,7 +741,16 @@ namespace External_Aimbot
                     "Active kit",
                     $"{debug.ActivePaintKit} / want {debug.ActiveExpectedPaint}",
                     match ? UiTheme.TextSuccess : UiTheme.TextWarning);
+                UiTheme.StatusRow(
+                    "Item ID high",
+                    debug.ActiveItemIdHigh.ToString(),
+                    debug.ActiveItemIdHigh == -1 ? UiTheme.TextSuccess : UiTheme.TextWarning);
             }
+
+            if (ImGui.Button("Force refresh now", new Vector2(140f, 0f)))
+                SkinChanger.RequestForceRefresh();
+            ImGui.SameLine();
+            UiTheme.HintMuted("Offline/bots · Admin · drop/re-buy if stuck");
 
             if (debug.Loadout == null || debug.Loadout.Length == 0)
             {
