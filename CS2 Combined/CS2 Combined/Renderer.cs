@@ -101,17 +101,6 @@ namespace External_Aimbot
         public int miscFovValue = 90;
         public MiscDebug MiscState;
 
-        public bool skinChangerEnabled = false;
-        public bool skinChangerUseRegenerate = true;
-        public int skinEditorWeaponDefIndex = 7;
-        public int skinEditorSkinIndex = 1;
-        public float skinEditorWear = 0.01f;
-        public int skinEditorSeed = 0;
-        public bool skinEditorStatTrak = false;
-        public int skinEditorStatTrakValue = 1337;
-        public SkinChangerDebug SkinChangerState;
-        private readonly Dictionary<int, SkinConfig> _skinConfigs = new();
-
         private readonly UtilityStore utilityStore = UtilityStore.CreateWithDefaults();
         public long utilitySessionStartTicks = Environment.TickCount64;
         private string _utilitySearch = "";
@@ -201,12 +190,6 @@ namespace External_Aimbot
                 if (ImGui.BeginTabItem("Misc"))
                 {
                     DrawMiscTab();
-                    ImGui.EndTabItem();
-                }
-
-                if (ImGui.BeginTabItem("Skins"))
-                {
-                    DrawSkinChangerTab();
                     ImGui.EndTabItem();
                 }
 
@@ -617,167 +600,6 @@ namespace External_Aimbot
 
                 return misc with { Spectators = (string[])misc.Spectators.Clone() };
             }
-        }
-
-        public IReadOnlyDictionary<int, SkinConfig> GetSkinConfigs() => _skinConfigs;
-
-        public void SetSkinChangerDebug(SkinChangerDebug debug) => SkinChangerState = debug;
-
-        private void DrawSkinChangerTab()
-        {
-            UiTheme.Section("Core");
-            ImGui.Checkbox("Enable skin changer", ref skinChangerEnabled);
-            ImGui.Checkbox("Refresh materials (RegenerateWeaponSkins)", ref skinChangerUseRegenerate);
-            UiTheme.HintMuted("Client-side only — you see skins; others on server do not.");
-            UiTheme.HintMuted("1. Save skin  2. Enable  3. Buy/spawn gun  4. If vanilla: drop & re-buy");
-            UiTheme.DrawFooterWarning(
-                "External skins break often after CS2 updates. Offline/bots works best. Not real inventory.",
-                UiTheme.TextWarning);
-
-            UiTheme.Section("Editor");
-            string weaponLabel = WeaponCatalog.GetName(skinEditorWeaponDefIndex);
-            if (ImGui.BeginCombo("Weapon", weaponLabel))
-            {
-                foreach (int weaponId in SkinCatalog.ConfigurableWeapons)
-                {
-                    string label = WeaponCatalog.GetName(weaponId);
-                    if (ImGui.Selectable(label, skinEditorWeaponDefIndex == weaponId))
-                        skinEditorWeaponDefIndex = weaponId;
-                }
-
-                ImGui.EndCombo();
-            }
-
-            SkinOption[] skins = SkinCatalog.GetSkins(skinEditorWeaponDefIndex);
-            skinEditorSkinIndex = Math.Clamp(skinEditorSkinIndex, 0, Math.Max(0, skins.Length - 1));
-            string skinLabel = skins[skinEditorSkinIndex].Name;
-
-            if (ImGui.BeginCombo("Skin", skinLabel))
-            {
-                for (int i = 0; i < skins.Length; i++)
-                {
-                    if (ImGui.Selectable(skins[i].Name, skinEditorSkinIndex == i))
-                        skinEditorSkinIndex = i;
-                }
-
-                ImGui.EndCombo();
-            }
-
-            ImGui.SliderFloat("Wear", ref skinEditorWear, 0.001f, 1f);
-            ImGui.InputInt("Seed", ref skinEditorSeed);
-            skinEditorSeed = Math.Clamp(skinEditorSeed, 0, 999);
-            ImGui.Checkbox("StatTrak", ref skinEditorStatTrak);
-            if (skinEditorStatTrak)
-                ImGui.InputInt("StatTrak value", ref skinEditorStatTrakValue);
-
-            ImGui.Spacing();
-            if (ImGui.Button("Save for weapon", new Vector2(140f, 0f)))
-            {
-                SkinOption selected = skins[skinEditorSkinIndex];
-                _skinConfigs[skinEditorWeaponDefIndex] = new SkinConfig
-                {
-                    PaintKit = selected.PaintKit,
-                    Seed = skinEditorSeed,
-                    Wear = skinEditorWear,
-                    StatTrakEnabled = skinEditorStatTrak,
-                    StatTrak = skinEditorStatTrakValue,
-                    LegacyModel = selected.LegacyModel,
-                };
-            }
-
-            ImGui.SameLine();
-            if (ImGui.Button("Apply to loadout guns", new Vector2(160f, 0f)))
-            {
-                SkinOption selected = skins[skinEditorSkinIndex];
-                var config = new SkinConfig
-                {
-                    PaintKit = selected.PaintKit,
-                    Seed = skinEditorSeed,
-                    Wear = skinEditorWear,
-                    StatTrakEnabled = skinEditorStatTrak,
-                    StatTrak = skinEditorStatTrakValue,
-                    LegacyModel = selected.LegacyModel,
-                };
-                _skinConfigs[skinEditorWeaponDefIndex] = config;
-                skinChangerEnabled = true;
-            }
-
-            ImGui.SameLine();
-            if (ImGui.Button("Clear saved", new Vector2(100f, 0f)))
-                _skinConfigs.Remove(skinEditorWeaponDefIndex);
-
-            UiTheme.Section("Saved");
-            if (_skinConfigs.Count == 0)
-            {
-                UiTheme.HintMuted("None saved yet");
-            }
-            else
-            {
-                foreach (var entry in _skinConfigs)
-                {
-                    ImGui.BulletText(
-                        $"{WeaponCatalog.GetName(entry.Key)} → kit {entry.Value.PaintKit}, wear {entry.Value.Wear:0.###}");
-                }
-            }
-
-            UiTheme.BeginStatusPanel("skins");
-            var debug = SkinChangerState;
-            UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
-            UiTheme.StatusRow(
-                "Schema",
-                debug.SchemaOffsetsOk ? "OK" : "missing",
-                debug.SchemaOffsetsOk ? UiTheme.TextSuccess : UiTheme.TextWarning);
-            UiTheme.StatusRow(
-                "Refresh sig",
-                debug.RegenerateFound ? "found" : "missing",
-                debug.RegenerateFound ? UiTheme.TextSuccess : UiTheme.TextWarning);
-            if (!string.IsNullOrEmpty(debug.RegenerateStatus))
-                UiTheme.StatusRow("Refresh", debug.RegenerateStatus, UiTheme.TextInfo);
-
-            if (debug.ActiveExpectedPaint > 0)
-            {
-                bool match = debug.ActivePaintKit == debug.ActiveExpectedPaint;
-                UiTheme.StatusRow(
-                    "Active kit",
-                    $"{debug.ActivePaintKit} / want {debug.ActiveExpectedPaint}",
-                    match ? UiTheme.TextSuccess : UiTheme.TextWarning);
-                UiTheme.StatusRow(
-                    "Item ID high",
-                    debug.ActiveItemIdHigh.ToString(),
-                    debug.ActiveItemIdHigh == -1 ? UiTheme.TextSuccess : UiTheme.TextWarning);
-            }
-
-            if (ImGui.Button("Force refresh now", new Vector2(140f, 0f)))
-                SkinChanger.RequestForceRefresh();
-            ImGui.SameLine();
-            UiTheme.HintMuted("Offline/bots · Admin · drop/re-buy if stuck");
-
-            if (debug.Loadout == null || debug.Loadout.Length == 0)
-            {
-                UiTheme.HintMuted("Join a match to detect your weapons");
-            }
-            else
-            {
-                foreach (LoadoutWeaponInfo weapon in debug.Loadout)
-                {
-                    string tag = weapon.Configured ? "configured" : "default";
-                    if (weapon.Active)
-                        tag += " · ACTIVE";
-                    if (weapon.Configured && weapon.CurrentPaintKit != weapon.ExpectedPaintKit)
-                        tag += " · mismatch";
-
-                    Vector4 color = weapon.Configured && weapon.CurrentPaintKit == weapon.ExpectedPaintKit
-                        ? UiTheme.TextSuccess
-                        : weapon.Configured
-                            ? UiTheme.TextWarning
-                            : UiTheme.TextMuted;
-                    ImGui.TextColored(
-                        color,
-                        $"• {weapon.Name} kit {weapon.CurrentPaintKit} (id {weapon.ItemIdHigh}) — {tag}");
-                }
-            }
-
-            UiTheme.EndStatusPanel();
         }
 
         public void SetRadarBlips(IReadOnlyList<RadarBlip> blips)

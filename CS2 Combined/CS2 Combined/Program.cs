@@ -92,7 +92,6 @@ try
             renderer.SetAllGunsAutoDebug(idleAllGunsAutoDebug);
             renderer.SetMiscDebug(default);
             renderer.SetRadarBlips([]);
-            renderer.SetSkinChangerDebug(default);
             renderer.SetUtilityHudContext(new UtilityHudContext
             {
                 SessionStartTicks = renderer.utilitySessionStartTicks,
@@ -342,16 +341,6 @@ try
             renderer.miscSpectatorList,
             out MiscDebug miscDebug);
         renderer.SetMiscDebug(miscDebug);
-
-        SkinChanger.Process(
-            mem,
-            localPlayer.pawnAddress,
-            entitySystem,
-            renderer.skinChangerEnabled,
-            renderer.skinChangerUseRegenerate,
-            renderer.GetSkinConfigs(),
-            out SkinChangerDebug skinDebug);
-        renderer.SetSkinChangerDebug(skinDebug);
 
         if (renderer.miscOverlayRadar)
         {

@@ -207,85 +207,6 @@ namespace External_Aimbot
             return true;
         }
 
-        public int GetModuleSize(string moduleName)
-        {
-            if (_process == null || _process.HasExited)
-                return 0;
-
-            foreach (ProcessModule module in _process.Modules)
-            {
-                if (module.ModuleName.Equals(moduleName, StringComparison.OrdinalIgnoreCase))
-                    return module.ModuleMemorySize;
-            }
-
-            return 0;
-        }
-
-        public IntPtr ScanClient(string pattern) =>
-            PatternScanner.Scan(this, Client, GetModuleSize("client.dll"), pattern);
-
-        /// <summary>Invoke __fastcall void fn(void* rcx) in the game process.</summary>
-        public bool TryInvokeFastcall(IntPtr function, IntPtr rcxArgument, int timeoutMs = 750)
-        {
-            if (function == IntPtr.Zero || _handle == IntPtr.Zero || _process == null || _process.HasExited)
-                return false;
-
-            byte[] shellcode = BuildFastcallStub(function, rcxArgument);
-            IntPtr remote = VirtualAllocEx(_handle, IntPtr.Zero, (uint)shellcode.Length, 0x3000, 0x40);
-            if (remote == IntPtr.Zero)
-                return false;
-
-            try
-            {
-                if (!WriteProcessMemory(_handle, remote, shellcode, shellcode.Length, out _))
-                    return false;
-
-                IntPtr thread = CreateRemoteThread(_handle, IntPtr.Zero, 0, remote, IntPtr.Zero, 0, out _);
-                if (thread == IntPtr.Zero)
-                    return false;
-
-                try
-                {
-                    uint wait = WaitForSingleObject(thread, (uint)timeoutMs);
-                    return wait == 0;
-                }
-                finally
-                {
-                    CloseHandle(thread);
-                }
-            }
-            finally
-            {
-                VirtualFreeEx(_handle, remote, 0, 0x8000);
-            }
-        }
-
-        private static byte[] BuildFastcallStub(IntPtr function, IntPtr rcxArgument)
-        {
-            var code = new byte[64];
-            int i = 0;
-            code[i++] = 0x48;
-            code[i++] = 0xB9;
-            BitConverter.GetBytes(rcxArgument.ToInt64()).CopyTo(code, i);
-            i += 8;
-            code[i++] = 0x48;
-            code[i++] = 0xB8;
-            BitConverter.GetBytes(function.ToInt64()).CopyTo(code, i);
-            i += 8;
-            code[i++] = 0x48;
-            code[i++] = 0x83;
-            code[i++] = 0xEC;
-            code[i++] = 0x28;
-            code[i++] = 0xFF;
-            code[i++] = 0xD0;
-            code[i++] = 0x48;
-            code[i++] = 0x83;
-            code[i++] = 0xC4;
-            code[i++] = 0x28;
-            code[i++] = 0xC3;
-            return code.AsSpan(0, i).ToArray();
-        }
-
         public void Dispose()
         {
             if (_handle != IntPtr.Zero)
@@ -330,29 +251,5 @@ namespace External_Aimbot
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr handle);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr VirtualAllocEx(
-            IntPtr process,
-            IntPtr address,
-            uint size,
-            uint allocationType,
-            uint protect);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool VirtualFreeEx(IntPtr process, IntPtr address, uint size, uint freeType);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr CreateRemoteThread(
-            IntPtr process,
-            IntPtr threadAttributes,
-            uint stackSize,
-            IntPtr startAddress,
-            IntPtr parameter,
-            uint creationFlags,
-            out uint threadId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
     }
 }
