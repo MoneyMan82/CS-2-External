@@ -45,20 +45,26 @@ namespace External_Aimbot
             return Vector3.Dot(viewDir, toTarget) >= MinForwardDot;
         }
 
-        private static bool IsSpottedByLocalPlayer(GameMemory mem, IntPtr targetPawn, int localControllerIndex)
+        public static bool IsSpottedByController(GameMemory mem, IntPtr targetPawn, int watcherControllerIndex)
         {
+            if (targetPawn == IntPtr.Zero || watcherControllerIndex < 0)
+                return false;
+
             int maskBase = Offsets.m_entitySpottedState + Offsets.m_bSpottedByMask;
             uint maskLow = (uint)mem.ReadInt(targetPawn, maskBase);
             uint maskHigh = (uint)mem.ReadInt(targetPawn, maskBase + 4);
 
-            if (IsMaskBitSet(maskLow, maskHigh, localControllerIndex))
+            if (IsMaskBitSet(maskLow, maskHigh, watcherControllerIndex))
                 return true;
 
-            if (localControllerIndex > 0 && IsMaskBitSet(maskLow, maskHigh, localControllerIndex - 1))
+            if (watcherControllerIndex > 0 && IsMaskBitSet(maskLow, maskHigh, watcherControllerIndex - 1))
                 return true;
 
             return false;
         }
+
+        private static bool IsSpottedByLocalPlayer(GameMemory mem, IntPtr targetPawn, int localControllerIndex) =>
+            IsSpottedByController(mem, targetPawn, localControllerIndex);
 
         private static bool IsMaskBitSet(uint maskLow, uint maskHigh, int controllerIndex)
         {

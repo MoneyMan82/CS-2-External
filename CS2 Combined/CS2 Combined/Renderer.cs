@@ -101,6 +101,14 @@ namespace External_Aimbot
         public int miscFovValue = 90;
         public MiscDebug MiscState;
 
+        public bool reconEnabled = false;
+        public bool reconEdgeGlow = true;
+        public bool reconThreatArrows = true;
+        public bool reconExposureMeter = true;
+        public bool reconUseMapMesh = true;
+        public AimbotGameMode reconGameMode = AimbotGameMode.Casual;
+        private ReconState _reconState;
+
         private readonly UtilityStore utilityStore = UtilityStore.CreateWithDefaults();
         public long utilitySessionStartTicks = Environment.TickCount64;
         private string _utilitySearch = "";
@@ -193,6 +201,12 @@ namespace External_Aimbot
                     ImGui.EndTabItem();
                 }
 
+                if (ImGui.BeginTabItem("Recon"))
+                {
+                    DrawReconTab();
+                    ImGui.EndTabItem();
+                }
+
                 ImGui.EndTabBar();
             }
 
@@ -214,6 +228,7 @@ namespace External_Aimbot
 
             DrawEsp();
             DrawOverlayRadar();
+            DrawRecon();
             UtilityHud.Draw(utilityStore, _utilityHudContext);
         }
 
@@ -563,6 +578,97 @@ namespace External_Aimbot
             ImGui.EndChild();
         }
 
+        private void DrawReconTab()
+        {
+            UiTheme.Section("What is this?");
+            UiTheme.HintMuted("ESP asks: can YOU see them?");
+            UiTheme.HintMuted("Recon asks: can THEY see YOU?");
+            UiTheme.HintMuted("Red edges = wide open. Orange = head peeking. Arrows = where the threat is.");
+
+            UiTheme.Section("Core");
+            ImGui.Checkbox("Enable Recon", ref reconEnabled);
+            ImGui.Checkbox("Red edge glow when exposed", ref reconEdgeGlow);
+            ImGui.Checkbox("Threat arrows on screen edge", ref reconThreatArrows);
+            ImGui.Checkbox("Exposure meter (top)", ref reconExposureMeter);
+            ImGui.Checkbox("Use map mesh (.tri)", ref reconUseMapMesh);
+            UiTheme.HintMuted("Mesh = wall-aware lines. Without it: spotted + facing fallback.");
+
+            string modeLabel = reconGameMode == AimbotGameMode.Deathmatch ? "Deathmatch" : "Casual / MM";
+            if (ImGui.BeginCombo("Who counts as threat##recon_mode", modeLabel))
+            {
+                if (ImGui.Selectable("Casual / MM", reconGameMode == AimbotGameMode.Casual))
+                    reconGameMode = AimbotGameMode.Casual;
+                if (ImGui.Selectable("Deathmatch", reconGameMode == AimbotGameMode.Deathmatch))
+                    reconGameMode = AimbotGameMode.Deathmatch;
+                ImGui.EndCombo();
+            }
+
+            UiTheme.Section("Map mesh");
+            DrawMapRaytracingStatus(alwaysShow: true);
+
+            UiTheme.BeginStatusPanel("recon");
+            ReconState recon = GetReconSnapshot();
+            string status = !reconEnabled
+                ? "Off"
+                : recon.ThreatCount == 0
+                    ? "Hidden — no one sees you"
+                    : recon.WorstBand switch
+                    {
+                        ExposureBand.Wide => "WIDE — body visible",
+                        ExposureBand.Peeking => "PEEK — head visible",
+                        _ => "Unknown",
+                    };
+
+            Vector4 statusColor = recon.WorstBand switch
+            {
+                ExposureBand.Wide => UiTheme.TextDanger,
+                ExposureBand.Peeking => UiTheme.TextWarning,
+                _ => UiTheme.TextSuccess,
+            };
+
+            UiTheme.StatusRow("Exposure", status, reconEnabled ? statusColor : UiTheme.TextMuted);
+            UiTheme.StatusRow("Threats", recon.ThreatCount.ToString(), UiTheme.TextPrimary);
+            UiTheme.StatusRow("Method", recon.Method ?? "—", UiTheme.TextInfo);
+            UiTheme.StatusRow(
+                "Mesh",
+                recon.MapMeshActive ? "active" : "fallback",
+                recon.MapMeshActive ? UiTheme.TextSuccess : UiTheme.TextWarning);
+
+            if (recon.Threats is { Length: > 0 })
+            {
+                foreach (ReconThreat threat in recon.Threats.OrderBy(t => t.Distance).Take(6))
+                {
+                    string band = threat.Band == ExposureBand.Wide ? "wide" : "peek";
+                    ImGui.BulletText($"{threat.Distance:0.#}m · {band}");
+                }
+            }
+
+            UiTheme.EndStatusPanel();
+        }
+
+        public void SetReconState(ReconState state)
+        {
+            lock (_overlayLock)
+            {
+                _reconState = state;
+            }
+        }
+
+        private ReconState GetReconSnapshot()
+        {
+            lock (_overlayLock)
+                return _reconState;
+        }
+
+        private void DrawRecon()
+        {
+            if (!reconEnabled)
+                return;
+
+            ReconState state = GetReconSnapshot();
+            ReconOverlay.Draw(state, reconEdgeGlow, reconThreatArrows, reconExposureMeter);
+        }
+
         public void SetAntiFlashDebug(AntiFlashDebug debug) => AntiFlashState = debug;
 
         public void SetNoRecoilDebug(NoRecoilDebug debug) => NoRecoilState = debug;
@@ -624,9 +730,9 @@ namespace External_Aimbot
             RadarOverlay.Draw(blips, miscRadarSize, 16f);
         }
 
-        private void DrawMapRaytracingStatus()
+        private void DrawMapRaytracingStatus(bool alwaysShow = false)
         {
-            if (!mapRaytracing)
+            if (!alwaysShow && !mapRaytracing)
                 return;
 
             string map = MapCollision.CurrentMap;

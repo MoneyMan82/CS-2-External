@@ -70,7 +70,7 @@ namespace External_Aimbot
             return false;
         }
 
-        private bool HasClearLine(Vector3 start, Vector3 end)
+        public bool HasClearLine(Vector3 start, Vector3 end)
         {
             Vector3 delta = end - start;
             float distance = delta.Length();

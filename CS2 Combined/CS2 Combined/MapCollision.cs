@@ -44,6 +44,12 @@ namespace External_Aimbot
             return tracer.IsVisible(from, head, chest);
         }
 
+        public static bool HasClearLine(Vector3 from, Vector3 to)
+        {
+            MapRayTracer? tracer = _tracer;
+            return tracer != null && tracer.HasClearLine(from, to);
+        }
+
         public static string? FindTriFile(string mapName)
         {
             if (string.IsNullOrWhiteSpace(mapName))

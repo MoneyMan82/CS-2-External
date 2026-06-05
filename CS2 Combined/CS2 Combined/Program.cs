@@ -91,6 +91,7 @@ try
                 out AllGunsAutoDebug idleAllGunsAutoDebug);
             renderer.SetAllGunsAutoDebug(idleAllGunsAutoDebug);
             renderer.SetMiscDebug(default);
+            renderer.SetReconState(default);
             renderer.SetRadarBlips([]);
             renderer.SetUtilityHudContext(new UtilityHudContext
             {
@@ -341,6 +342,24 @@ try
             renderer.miscSpectatorList,
             out MiscDebug miscDebug);
         renderer.SetMiscDebug(miscDebug);
+
+        List<Entity> reconTargets = EntityScanner.FilterByTeam(
+            allPlayers,
+            localPlayer,
+            renderer.reconGameMode,
+            aimOnTeam: false);
+
+        ReconState reconState = ReconAnalyzer.Analyze(
+            mem,
+            entitySystem,
+            localPlayer,
+            reconTargets,
+            renderer.reconEnabled,
+            renderer.reconUseMapMesh,
+            viewMatrix,
+            screenSize.X,
+            screenSize.Y);
+        renderer.SetReconState(reconState);
 
         if (renderer.miscOverlayRadar)
         {
