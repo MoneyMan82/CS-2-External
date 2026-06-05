@@ -45,19 +45,16 @@ namespace External_Aimbot
         {
             debug = new AllGunsAutoDebug { Status = enabled ? "Active" : "Disabled" };
 
-            if (!enabled)
+            if (!enabled && _wasEnabled)
             {
-                if (_wasEnabled || _attackPulsing)
-                {
-                    StopPulsing(mem);
-                    ResetState();
-                }
-
-                _wasEnabled = false;
-                return;
+                StopPulsing(mem);
+                ResetState();
             }
 
-            _wasEnabled = true;
+            _wasEnabled = enabled;
+
+            if (!enabled)
+                return;
 
             if (overlayBlockingInput)
             {

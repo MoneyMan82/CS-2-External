@@ -106,7 +106,6 @@ namespace External_Aimbot
             UiTheme.Section("Performance");
             DrawPerformanceRadio(settings);
             UiTheme.HintMuted($"Game loop sleep: {settings.GameLoopSleepMs} ms (bhop overrides when on)");
-            UiTheme.HintMuted("Shooting passes through the menu unless you click UI widgets.");
 
             UiTheme.Section("About");
             ImGui.TextColored(UiTheme.TextPrimary, OverlaySettings.VersionLabel);
