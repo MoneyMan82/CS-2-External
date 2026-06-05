@@ -215,15 +215,45 @@ namespace External_Aimbot
         private void DrawMainMenuWindow()
         {
             var io = ImGui.GetIO();
-            float menuW = Math.Clamp(io.DisplaySize.X * Settings.MenuWidthFraction, 240f, 380f);
-            float menuH = Math.Clamp(io.DisplaySize.Y * Settings.MenuHeightFraction, 180f, 340f);
+            float defaultW = Math.Clamp(io.DisplaySize.X * Settings.MenuWidthFraction, 240f, 380f);
+            float defaultH = Math.Clamp(io.DisplaySize.Y * Settings.MenuHeightFraction, 180f, 340f);
+            var defaultSize = new Vector2(defaultW, defaultH);
+            var margin = new Vector2(8f, 8f);
 
-            OverlayLayout.AnchorWindow(Settings.MenuCorner, new Vector2(8f, 8f));
-            ImGui.SetNextWindowSize(new Vector2(menuW, menuH), ImGuiCond.Always);
-            ImGui.SetNextWindowSizeConstraints(new Vector2(240f, 180f), new Vector2(400f, 360f));
+            if (Settings.PendingMenuLayoutReset)
+            {
+                OverlayLayout.SetInitialWindowPlacement(
+                    Settings.MenuCorner,
+                    margin,
+                    defaultSize,
+                    ImGuiCond.Always);
+                Settings.PendingMenuLayoutReset = false;
+                Settings.MenuLayoutInitialized = false;
+            }
+            else if (!Settings.MenuLayoutInitialized)
+            {
+                OverlayLayout.SetInitialWindowPlacement(
+                    Settings.MenuCorner,
+                    margin,
+                    defaultSize,
+                    ImGuiCond.FirstUseEver);
+            }
+
+            ImGui.SetNextWindowSizeConstraints(new Vector2(240f, 180f), new Vector2(560f, 520f));
 
             ImGui.Begin("CS2 Combined", ImGuiWindowFlags.NoCollapse);
             UpdateOverlayInputBlock();
+
+            Vector2 windowSize = ImGui.GetWindowSize();
+            if (windowSize.X >= 240f && windowSize.Y >= 180f)
+            {
+                Vector2 windowPos = ImGui.GetWindowPos();
+                Settings.MenuPosX = windowPos.X;
+                Settings.MenuPosY = windowPos.Y;
+                Settings.MenuWidth = windowSize.X;
+                Settings.MenuHeight = windowSize.Y;
+                Settings.MenuLayoutInitialized = true;
+            }
 
             ImGui.SetWindowFontScale(Settings.MenuFontScale);
 

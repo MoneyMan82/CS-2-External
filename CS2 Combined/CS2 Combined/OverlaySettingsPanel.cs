@@ -77,9 +77,19 @@ namespace External_Aimbot
 
             UiTheme.Section("Menu");
             ImGui.Checkbox("Show feature menu", ref settings.ShowMainMenu);
-            OverlayLayout.CornerCombo("Menu corner##set_menu", ref settings.MenuCorner);
-            ImGui.SliderFloat("Menu width", ref settings.MenuWidthFraction, 0.18f, 0.36f);
-            ImGui.SliderFloat("Menu height", ref settings.MenuHeightFraction, 0.22f, 0.45f);
+            UiTheme.HintMuted("Drag the title bar to move · drag edges/corners to resize.");
+            OverlayLayout.CornerCombo("Reset corner##set_menu", ref settings.MenuCorner);
+            ImGui.SliderFloat("Default width", ref settings.MenuWidthFraction, 0.18f, 0.36f);
+            ImGui.SliderFloat("Default height", ref settings.MenuHeightFraction, 0.22f, 0.45f);
+            if (ImGui.Button("Reset menu position & size", new Vector2(-1f, 0f)))
+                settings.PendingMenuLayoutReset = true;
+            if (settings.MenuLayoutInitialized && settings.MenuWidth > 0f)
+            {
+                UiTheme.StatusRow(
+                    "Current size",
+                    $"{settings.MenuWidth:0} × {settings.MenuHeight:0}",
+                    UiTheme.TextMuted);
+            }
 
             UiTheme.Section("Appearance");
             DrawDensityRadio(settings);

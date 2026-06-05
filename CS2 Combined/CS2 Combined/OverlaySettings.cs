@@ -53,6 +53,13 @@ namespace External_Aimbot
         public AccentPreset Accent = AccentPreset.Teal;
         public PerformancePreset Performance = PerformancePreset.Balanced;
 
+        public bool MenuLayoutInitialized;
+        public bool PendingMenuLayoutReset;
+        public float MenuPosX;
+        public float MenuPosY;
+        public float MenuWidth;
+        public float MenuHeight;
+
         public int GameLoopSleepMs => Performance switch
         {
             PerformancePreset.Fast => 2,

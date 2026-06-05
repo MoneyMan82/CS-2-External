@@ -23,10 +23,21 @@ namespace External_Aimbot
                 _ => margin,
             };
 
-        public static void AnchorWindow(OverlayCorner corner, Vector2 margin)
+        public static void SetInitialWindowPlacement(
+            OverlayCorner corner,
+            Vector2 margin,
+            Vector2 size,
+            ImGuiCond condition = ImGuiCond.Once)
         {
             Vector2 display = ImGui.GetIO().DisplaySize;
-            ImGui.SetNextWindowPos(GetScreenCorner(display, corner, margin), ImGuiCond.Always, GetPivot(corner));
+            ImGui.SetNextWindowPos(GetScreenCorner(display, corner, margin), condition, GetPivot(corner));
+            ImGui.SetNextWindowSize(size, condition);
+        }
+
+        public static void AnchorWindow(OverlayCorner corner, Vector2 margin, ImGuiCond condition = ImGuiCond.Always)
+        {
+            Vector2 display = ImGui.GetIO().DisplaySize;
+            ImGui.SetNextWindowPos(GetScreenCorner(display, corner, margin), condition, GetPivot(corner));
         }
 
         public static bool CornerCombo(string id, ref OverlayCorner corner)
