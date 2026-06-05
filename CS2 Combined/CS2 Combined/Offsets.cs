@@ -50,6 +50,12 @@
         public static int m_iItemIDLow = 0x1D4;
         public static int m_bInitialized = 0x1E8;
         public static int m_bDisallowSOC = 0x1E9;
+        public static int m_bRestoreCustomMaterialAfterPrecache = 0x1B8;
+        public static int m_iEntityQuality = 0x1BC;
+        public static int m_iAccountID = 0x1D8;
+        public static int m_bClientside = 0x1668;
+        public static int m_bAttributesInitialized = 0x1178;
+        public static int m_hViewmodelAttachment = 0x1678;
         public static int m_hMyWeapons = 0x48;
         public static int m_hOwnerEntity = 0x520;
         public static int m_hHudModelArms = 0x1B58;

@@ -15,8 +15,10 @@ namespace External_Aimbot
         public int DefinitionIndex { get; init; }
         public string Name { get; init; }
         public int CurrentPaintKit { get; init; }
+        public int ExpectedPaintKit { get; init; }
         public int ItemIdHigh { get; init; }
         public bool Configured { get; init; }
+        public bool Active { get; init; }
     }
 
     public readonly struct SkinChangerDebug
@@ -25,29 +27,46 @@ namespace External_Aimbot
         public int SkinsApplied { get; init; }
         public string Status { get; init; }
         public LoadoutWeaponInfo[] Loadout { get; init; }
+        public bool RegenerateFound { get; init; }
+        public string RegenerateStatus { get; init; }
+        public int ActivePaintKit { get; init; }
+        public int ActiveExpectedPaint { get; init; }
     }
 
     internal static class SkinChanger
     {
         private const int ForceFallbackItemId = -1;
         private const int EconReloadIntervalMs = 250;
+        private const int RegenerateIntervalMs = 400;
+
+        private const string RegeneratePattern =
+            "48 83 EC ? E8 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? 48 8B 10";
 
         private static long _lastEconReloadMs;
         private static IntPtr _lastEconPawn;
+        private static IntPtr _regenerateFn;
+        private static bool _regenerateScanDone;
+        private static long _lastRegenerateMs;
+        private static IntPtr _lastRegenerateWeapon;
+        private static int _lastRegeneratePaint;
 
         public static void Process(
             GameMemory mem,
             IntPtr pawn,
             IntPtr entitySystem,
             bool enabled,
+            bool useRegenerate,
             IReadOnlyDictionary<int, SkinConfig> configs,
             out SkinChangerDebug debug)
         {
             var loadout = new List<LoadoutWeaponInfo>();
+            IntPtr regenerateFn = ResolveRegenerateFunction(mem);
             debug = new SkinChangerDebug
             {
                 Status = enabled ? "Active" : "Disabled",
                 Loadout = [],
+                RegenerateFound = regenerateFn != IntPtr.Zero,
+                RegenerateStatus = regenerateFn != IntPtr.Zero ? "Signature OK" : "Signature not found",
             };
 
             if (!enabled || pawn == IntPtr.Zero || entitySystem == IntPtr.Zero)
@@ -64,9 +83,12 @@ namespace External_Aimbot
                 debug = debug with { Status = "Enabled — save a skin for a weapon first" };
             }
 
+            IntPtr activeWeapon = WeaponInventory.GetActiveWeapon(mem, pawn, entitySystem);
             int applied = 0;
             var seen = new HashSet<IntPtr>();
             bool anyConfigured = false;
+            int activePaint = 0;
+            int activeExpected = 0;
 
             foreach (IntPtr weapon in WeaponInventory.EnumerateWeapons(mem, pawn, entitySystem))
             {
@@ -81,15 +103,25 @@ namespace External_Aimbot
                 int currentPaint = mem.ReadInt(weapon, Offsets.m_nFallbackPaintKit);
                 int itemIdHigh = mem.ReadInt(itemView, Offsets.m_iItemIDHigh);
                 bool configured = configs.TryGetValue(defIndex, out SkinConfig config) && config.PaintKit > 0;
+                bool isActive = weapon == activeWeapon;
+                int expected = configured ? config.PaintKit : 0;
 
                 loadout.Add(new LoadoutWeaponInfo
                 {
                     DefinitionIndex = defIndex,
                     Name = WeaponCatalog.GetName(defIndex),
                     CurrentPaintKit = currentPaint,
+                    ExpectedPaintKit = expected,
                     ItemIdHigh = itemIdHigh,
                     Configured = configured,
+                    Active = isActive,
                 });
+
+                if (isActive)
+                {
+                    activePaint = currentPaint;
+                    activeExpected = expected;
+                }
 
                 if (!configured)
                     continue;
@@ -102,30 +134,89 @@ namespace External_Aimbot
             if (anyConfigured)
                 MaybeBumpEconReload(mem, pawn);
 
+            string regenStatus = debug.RegenerateStatus;
+            if (useRegenerate && regenerateFn != IntPtr.Zero && activeWeapon != IntPtr.Zero &&
+                configs.TryGetValue(WeaponInventory.ReadDefinitionIndex(mem, activeWeapon), out SkinConfig activeConfig) &&
+                activeConfig.PaintKit > 0)
+            {
+                if (MaybeRegenerateActiveWeapon(mem, activeWeapon, activeConfig.PaintKit, regenerateFn))
+                    regenStatus = "Refreshed active weapon";
+            }
+            else if (useRegenerate && regenerateFn == IntPtr.Zero)
+            {
+                regenStatus = "Refresh unavailable — memory-only mode";
+            }
+
             debug = new SkinChangerDebug
             {
                 WeaponsFound = loadout.Count,
                 SkinsApplied = applied,
-                Status = BuildStatus(loadout.Count, configs.Count, applied, anyConfigured),
+                Status = BuildStatus(loadout.Count, configs.Count, applied, anyConfigured, activePaint, activeExpected),
                 Loadout = loadout.ToArray(),
+                RegenerateFound = regenerateFn != IntPtr.Zero,
+                RegenerateStatus = regenStatus,
+                ActivePaintKit = activePaint,
+                ActiveExpectedPaint = activeExpected,
             };
         }
 
-        private static string BuildStatus(int weaponsFound, int configCount, int applied, bool anyConfigured)
+        private static string BuildStatus(
+            int weaponsFound,
+            int configCount,
+            int applied,
+            bool anyConfigured,
+            int activePaint,
+            int activeExpected)
         {
             if (weaponsFound == 0)
-                return "No weapons found — join a match and buy guns";
+                return "No weapons — buy/spawn guns in a match";
 
             if (configCount == 0)
-                return "Enabled — save a skin for a weapon first";
+                return "Save a skin, enable, then hold that gun";
+
+            if (activeExpected > 0 && activePaint == activeExpected)
+                return $"Active gun shows kit {activePaint}";
+
+            if (activeExpected > 0 && activePaint != activeExpected)
+                return $"Active gun kit {activePaint}, want {activeExpected} — drop & re-buy";
 
             if (applied > 0)
-                return $"Applied {applied} weapon(s) — drop/re-buy if still vanilla";
+                return $"Writing {applied} weapon(s) each frame";
 
             if (anyConfigured)
-                return $"Keeping {weaponsFound} weapon(s) in fallback mode";
+                return "Configured weapons not in loadout yet";
 
             return "Watching loadout";
+        }
+
+        private static IntPtr ResolveRegenerateFunction(GameMemory mem)
+        {
+            if (_regenerateScanDone)
+                return _regenerateFn;
+
+            _regenerateScanDone = true;
+            _regenerateFn = mem.ScanClient(RegeneratePattern);
+            return _regenerateFn;
+        }
+
+        private static bool MaybeRegenerateActiveWeapon(
+            GameMemory mem,
+            IntPtr weapon,
+            int paintKit,
+            IntPtr regenerateFn)
+        {
+            long now = Environment.TickCount64;
+            if (_lastRegenerateWeapon == weapon &&
+                _lastRegeneratePaint == paintKit &&
+                now - _lastRegenerateMs < RegenerateIntervalMs)
+            {
+                return false;
+            }
+
+            _lastRegenerateWeapon = weapon;
+            _lastRegeneratePaint = paintKit;
+            _lastRegenerateMs = now;
+            return mem.TryInvokeFastcall(regenerateFn, weapon);
         }
 
         private static bool ApplySkin(
@@ -143,6 +234,7 @@ namespace External_Aimbot
             float targetWear = Math.Clamp(config.Wear, 0.001f, 0.99f);
             int targetSeed = Math.Clamp(config.Seed, 0, 999);
             ulong meshMask = config.LegacyModel ? 2UL : 1UL;
+            int targetQuality = config.StatTrakEnabled ? 9 : 0;
 
             bool changed =
                 itemIdHigh != ForceFallbackItemId ||
@@ -150,14 +242,29 @@ namespace External_Aimbot
                 currentSeed != targetSeed ||
                 MathF.Abs(currentWear - targetWear) > 0.001f;
 
-            mem.WriteInt(itemView, Offsets.m_iItemIDHigh, ForceFallbackItemId);
-            mem.WriteInt(itemView, Offsets.m_iItemIDLow, ForceFallbackItemId);
+            if (Offsets.m_bAttributesInitialized != 0)
+                mem.WriteBool(weapon, Offsets.m_bAttributesInitialized, false);
 
             if (Offsets.m_bInitialized != 0)
                 mem.WriteBool(itemView, Offsets.m_bInitialized, false);
 
+            mem.WriteInt(itemView, Offsets.m_iItemIDHigh, ForceFallbackItemId);
+            mem.WriteInt(itemView, Offsets.m_iItemIDLow, ForceFallbackItemId);
+
+            if (Offsets.m_iAccountID != 0)
+                mem.WriteInt(itemView, Offsets.m_iAccountID, 0);
+
+            if (Offsets.m_iEntityQuality != 0)
+                mem.WriteInt(itemView, Offsets.m_iEntityQuality, targetQuality);
+
             if (Offsets.m_bDisallowSOC != 0)
                 mem.WriteBool(itemView, Offsets.m_bDisallowSOC, true);
+
+            if (Offsets.m_bRestoreCustomMaterialAfterPrecache != 0)
+                mem.WriteBool(itemView, Offsets.m_bRestoreCustomMaterialAfterPrecache, true);
+
+            if (Offsets.m_bClientside != 0)
+                mem.WriteBool(weapon, Offsets.m_bClientside, true);
 
             mem.WriteInt(weapon, Offsets.m_nFallbackPaintKit, config.PaintKit);
             mem.WriteInt(weapon, Offsets.m_nFallbackSeed, targetSeed);
@@ -168,8 +275,15 @@ namespace External_Aimbot
             else
                 mem.WriteInt(weapon, Offsets.m_nFallbackStatTrak, -1);
 
+            if (Offsets.m_bInitialized != 0)
+                mem.WriteBool(itemView, Offsets.m_bInitialized, true);
+
+            if (Offsets.m_bAttributesInitialized != 0)
+                mem.WriteBool(weapon, Offsets.m_bAttributesInitialized, true);
+
             ApplyMeshMask(mem, weapon, meshMask);
             ApplyHudViewModelMesh(mem, pawn, entitySystem, weapon, meshMask);
+            ApplyViewmodelAttachmentMesh(mem, entitySystem, weapon, meshMask);
 
             return changed;
         }
@@ -187,6 +301,23 @@ namespace External_Aimbot
             _lastEconReloadMs = now;
             int eventId = mem.ReadInt(pawn, Offsets.m_nCustomEconReloadEventId);
             mem.WriteInt(pawn, Offsets.m_nCustomEconReloadEventId, eventId + 1);
+        }
+
+        private static void ApplyViewmodelAttachmentMesh(
+            GameMemory mem,
+            IntPtr entitySystem,
+            IntPtr weapon,
+            ulong meshMask)
+        {
+            if (Offsets.m_hViewmodelAttachment == 0)
+                return;
+
+            int handle = mem.ReadInt(weapon, Offsets.m_hViewmodelAttachment);
+            IntPtr attachment = EntityList.ResolveWeaponHandle(mem, entitySystem, handle);
+            if (!IsValidAddress(attachment))
+                return;
+
+            ApplyMeshMask(mem, attachment, meshMask);
         }
 
         private static void ApplyHudViewModelMesh(

@@ -102,6 +102,7 @@ namespace External_Aimbot
         public MiscDebug MiscState;
 
         public bool skinChangerEnabled = false;
+        public bool skinChangerUseRegenerate = true;
         public int skinEditorWeaponDefIndex = 7;
         public int skinEditorSkinIndex = 1;
         public float skinEditorWear = 0.01f;
@@ -626,9 +627,12 @@ namespace External_Aimbot
         {
             UiTheme.Section("Core");
             ImGui.Checkbox("Enable skin changer", ref skinChangerEnabled);
-            UiTheme.HintMuted("1. Pick weapon + skin  2. Save for weapon  3. Enable and spawn with that gun.");
-            UiTheme.HintMuted("Client-side only (you see it). Drop/re-buy gun if vanilla. Offsets must be current.");
-            UiTheme.HintMuted("Uses safe memory writes only — no downloads, no injection, no remote threads.");
+            ImGui.Checkbox("Refresh materials (RegenerateWeaponSkins)", ref skinChangerUseRegenerate);
+            UiTheme.HintMuted("Client-side only — you see skins; others on server do not.");
+            UiTheme.HintMuted("1. Save skin  2. Enable  3. Buy/spawn gun  4. If vanilla: drop & re-buy");
+            UiTheme.DrawFooterWarning(
+                "External skins break often after CS2 updates. Offline/bots works best. Not real inventory.",
+                UiTheme.TextWarning);
 
             UiTheme.Section("Editor");
             string weaponLabel = WeaponCatalog.GetName(skinEditorWeaponDefIndex);
@@ -719,6 +723,21 @@ namespace External_Aimbot
             UiTheme.BeginStatusPanel("skins");
             var debug = SkinChangerState;
             UiTheme.StatusRow("State", debug.Status, UiTheme.TextPrimary);
+            UiTheme.StatusRow(
+                "Refresh sig",
+                debug.RegenerateFound ? "found" : "missing",
+                debug.RegenerateFound ? UiTheme.TextSuccess : UiTheme.TextWarning);
+            if (!string.IsNullOrEmpty(debug.RegenerateStatus))
+                UiTheme.StatusRow("Refresh", debug.RegenerateStatus, UiTheme.TextInfo);
+
+            if (debug.ActiveExpectedPaint > 0)
+            {
+                bool match = debug.ActivePaintKit == debug.ActiveExpectedPaint;
+                UiTheme.StatusRow(
+                    "Active kit",
+                    $"{debug.ActivePaintKit} / want {debug.ActiveExpectedPaint}",
+                    match ? UiTheme.TextSuccess : UiTheme.TextWarning);
+            }
 
             if (debug.Loadout == null || debug.Loadout.Length == 0)
             {
@@ -729,10 +748,19 @@ namespace External_Aimbot
                 foreach (LoadoutWeaponInfo weapon in debug.Loadout)
                 {
                     string tag = weapon.Configured ? "configured" : "default";
-                    Vector4 color = weapon.Configured ? UiTheme.TextSuccess : UiTheme.TextMuted;
+                    if (weapon.Active)
+                        tag += " · ACTIVE";
+                    if (weapon.Configured && weapon.CurrentPaintKit != weapon.ExpectedPaintKit)
+                        tag += " · mismatch";
+
+                    Vector4 color = weapon.Configured && weapon.CurrentPaintKit == weapon.ExpectedPaintKit
+                        ? UiTheme.TextSuccess
+                        : weapon.Configured
+                            ? UiTheme.TextWarning
+                            : UiTheme.TextMuted;
                     ImGui.TextColored(
                         color,
-                        $"• {weapon.Name} (kit {weapon.CurrentPaintKit}, id {weapon.ItemIdHigh}) — {tag}");
+                        $"• {weapon.Name} kit {weapon.CurrentPaintKit} (id {weapon.ItemIdHigh}) — {tag}");
                 }
             }
 

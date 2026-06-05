@@ -48,6 +48,12 @@ namespace External_Aimbot
                 SetField(classes, "C_EconItemView", "m_iItemIDLow", v => Offsets.m_iItemIDLow = v);
                 SetField(classes, "C_EconItemView", "m_bInitialized", v => Offsets.m_bInitialized = v);
                 SetField(classes, "C_EconItemView", "m_bDisallowSOC", v => Offsets.m_bDisallowSOC = v);
+                SetField(classes, "C_EconItemView", "m_bRestoreCustomMaterialAfterPrecache", v => Offsets.m_bRestoreCustomMaterialAfterPrecache = v);
+                SetField(classes, "C_EconItemView", "m_iEntityQuality", v => Offsets.m_iEntityQuality = v);
+                SetField(classes, "C_EconItemView", "m_iAccountID", v => Offsets.m_iAccountID = v);
+                SetField(classes, "C_EconEntity", "m_bClientside", v => Offsets.m_bClientside = v);
+                SetField(classes, "C_EconEntity", "m_bAttributesInitialized", v => Offsets.m_bAttributesInitialized = v);
+                SetField(classes, "C_EconEntity", "m_hViewmodelAttachment", v => Offsets.m_hViewmodelAttachment = v);
                 SetField(classes, "CPlayer_WeaponServices", "m_hMyWeapons", v => Offsets.m_hMyWeapons = v);
                 SetField(classes, "C_EconEntity", "m_nFallbackPaintKit", v => Offsets.m_nFallbackPaintKit = v);
                 SetField(classes, "C_EconEntity", "m_nFallbackSeed", v => Offsets.m_nFallbackSeed = v);
