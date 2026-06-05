@@ -39,7 +39,7 @@ namespace External_Aimbot
     public sealed class OverlaySettings
     {
         public bool ShowSettingsButton = true;
-        public OverlayCorner SettingsButtonCorner = OverlayCorner.TopRight;
+        public OverlayCorner SettingsButtonCorner = OverlayCorner.BottomLeft;
         public bool SettingsPopupOpen;
 
         public bool ShowMainMenu = true;

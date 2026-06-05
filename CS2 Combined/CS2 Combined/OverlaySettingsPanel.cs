@@ -5,8 +5,9 @@ namespace External_Aimbot
 {
     internal static class OverlaySettingsPanel
     {
-        private const float FabSize = 30f;
-        private const float FabMargin = 10f;
+        private const float FabWidth = 52f;
+        private const float FabHeight = 28f;
+        private const float FabMargin = 14f;
 
         public static void DrawFab(OverlaySettings settings)
         {
@@ -14,12 +15,17 @@ namespace External_Aimbot
                 return;
 
             OverlayLayout.AnchorWindow(settings.SettingsButtonCorner, new Vector2(FabMargin, FabMargin));
-            ImGui.SetNextWindowSize(new Vector2(FabSize, FabSize));
+            ImGui.SetNextWindowSize(new Vector2(FabWidth, FabHeight));
 
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(4f, 3f));
             ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
-            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.09f, 0.10f, 0.13f, 0.92f));
-            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(UiTheme.Accent.X, UiTheme.Accent.Y, UiTheme.Accent.Z, 0.45f));
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6f);
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.07f, 0.08f, 0.10f, 0.94f));
+            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(UiTheme.Accent.X, UiTheme.Accent.Y, UiTheme.Accent.Z, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(UiTheme.Accent.X * 0.35f, UiTheme.Accent.Y * 0.35f, UiTheme.Accent.Z * 0.35f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(UiTheme.Accent.X * 0.55f, UiTheme.Accent.Y * 0.55f, UiTheme.Accent.Z * 0.55f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(UiTheme.Accent.X * 0.75f, UiTheme.Accent.Y * 0.75f, UiTheme.Accent.Z * 0.75f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.TextPrimary);
 
             ImGuiWindowFlags flags =
                 ImGuiWindowFlags.NoTitleBar |
@@ -27,30 +33,28 @@ namespace External_Aimbot
                 ImGuiWindowFlags.NoMove |
                 ImGuiWindowFlags.NoScrollbar |
                 ImGuiWindowFlags.NoCollapse |
-                ImGuiWindowFlags.NoSavedSettings;
+                ImGuiWindowFlags.NoSavedSettings |
+                ImGuiWindowFlags.AlwaysAutoResize;
 
             ImGui.Begin("##overlay_settings_fab", flags);
 
-            if (ImGui.InvisibleButton("##fab_btn", new Vector2(FabSize, FabSize)))
+            if (ImGui.Button("SET", new Vector2(FabWidth - 8f, FabHeight - 6f)))
                 settings.SettingsPopupOpen = !settings.SettingsPopupOpen;
 
-            bool hovered = ImGui.IsItemHovered();
-            var draw = ImGui.GetWindowDrawList();
-            Vector2 min = ImGui.GetItemRectMin();
-            Vector2 max = ImGui.GetItemRectMax();
-            Vector2 center = (min + max) * 0.5f;
-
-            uint bg = ImGui.ColorConvertFloat4ToU32(
-                hovered
-                    ? new Vector4(UiTheme.Accent.X, UiTheme.Accent.Y, UiTheme.Accent.Z, 0.22f)
-                    : new Vector4(0.13f, 0.15f, 0.19f, 0.95f));
-            draw.AddRectFilled(min, max, bg, 8f);
-            draw.AddRect(min, max, UiTheme.AccentU32, 8f, ImDrawFlags.None, hovered ? 1.6f : 1f);
-            DrawGearIcon(draw, center, hovered ? 7.5f : 7f, UiTheme.AccentU32);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Overlay settings");
 
             ImGui.End();
-            ImGui.PopStyleColor(2);
-            ImGui.PopStyleVar(2);
+            ImGui.PopStyleColor(6);
+            ImGui.PopStyleVar(3);
+        }
+
+        public static void DrawMenuShortcut(OverlaySettings settings)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Button, UiTheme.AccentSoft);
+            if (ImGui.SmallButton("Settings"))
+                settings.SettingsPopupOpen = !settings.SettingsPopupOpen;
+            ImGui.PopStyleColor();
         }
 
         public static void DrawWindow(OverlaySettings settings)
@@ -58,7 +62,7 @@ namespace External_Aimbot
             if (!settings.SettingsPopupOpen)
                 return;
 
-            Vector2 popupMargin = new(FabMargin + FabSize + 6f, FabMargin);
+            Vector2 popupMargin = new(FabMargin, FabMargin + FabHeight + 8f);
             OverlayLayout.AnchorWindow(settings.SettingsButtonCorner, popupMargin);
             ImGui.SetNextWindowSize(new Vector2(268f, 360f), ImGuiCond.FirstUseEver);
 
@@ -85,8 +89,9 @@ namespace External_Aimbot
             DrawAccentRadio(settings);
 
             UiTheme.Section("Button");
-            ImGui.Checkbox("Show settings button", ref settings.ShowSettingsButton);
+            ImGui.Checkbox("Show SET corner button", ref settings.ShowSettingsButton);
             OverlayLayout.CornerCombo("Button corner##set_fab", ref settings.SettingsButtonCorner);
+            UiTheme.HintMuted("Look for the teal SET pill in that corner.");
 
             UiTheme.Section("Performance");
             DrawPerformanceRadio(settings);
@@ -100,19 +105,6 @@ namespace External_Aimbot
             ImGui.EndChild();
             ImGui.PopStyleVar();
             ImGui.End();
-        }
-
-        private static void DrawGearIcon(ImDrawListPtr draw, Vector2 center, float radius, uint color)
-        {
-            draw.AddCircle(center, radius * 0.45f, color, 16, 1.4f);
-            for (int i = 0; i < 8; i++)
-            {
-                float angle = i * MathF.PI * 0.25f;
-                var dir = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
-                var a = center + dir * (radius * 0.55f);
-                var b = center + dir * radius;
-                draw.AddLine(a, b, color, 1.6f);
-            }
         }
 
         private static void DrawDensityRadio(OverlaySettings settings)

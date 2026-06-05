@@ -188,12 +188,8 @@ namespace External_Aimbot
             UiTheme.ApplyForSettings(Settings);
             ApplyMenuFontIfNeeded();
 
-            OverlaySettingsPanel.DrawFab(Settings);
-
             if (Settings.ShowMainMenu)
                 DrawMainMenuWindow();
-
-            OverlaySettingsPanel.DrawWindow(Settings);
 
             bool drawFov = showFovCircle || utilityStore.IsOn("pr_show_fov_circle");
             if (drawFov)
@@ -209,6 +205,9 @@ namespace External_Aimbot
             DrawOverlayRadar();
             DrawIntel();
             UtilityHud.Draw(utilityStore, _utilityHudContext);
+
+            OverlaySettingsPanel.DrawFab(Settings);
+            OverlaySettingsPanel.DrawWindow(Settings);
         }
 
         public void SetUtilityHudContext(UtilityHudContext ctx) => _utilityHudContext = ctx;
@@ -227,6 +226,12 @@ namespace External_Aimbot
             UpdateOverlayInputBlock();
 
             ImGui.SetWindowFontScale(Settings.MenuFontScale);
+
+            float settingsX = ImGui.GetWindowWidth() - 78f;
+            ImGui.SetCursorPos(new Vector2(settingsX, 8f));
+            OverlaySettingsPanel.DrawMenuShortcut(Settings);
+            ImGui.SetCursorPos(new Vector2(10f, 8f));
+
             UiTheme.DrawMenuHeader();
 
             if (ImGui.BeginTabBar("MainTabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton))
