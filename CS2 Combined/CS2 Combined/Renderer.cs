@@ -111,6 +111,10 @@ namespace External_Aimbot
         private bool _intelTeamPlaceholder;
         private IntelState _intelState;
 
+        public readonly OverlaySettings Settings = new();
+        private MenuFontChoice _appliedMenuFont = (MenuFontChoice)(-1);
+        private float _appliedMenuFontSize = -1f;
+
         private readonly UtilityStore utilityStore = UtilityStore.CreateWithDefaults();
         public long utilitySessionStartTicks = Environment.TickCount64;
         private string _utilitySearch = "";
@@ -142,9 +146,38 @@ namespace External_Aimbot
 
         private void LoadUiFont()
         {
+            if (Settings.MenuFont == MenuFontChoice.Fredoka)
+                TryLoadFredokaFont();
+        }
+
+        private void TryLoadFredokaFont()
+        {
             string fontPath = Path.Combine(AppContext.BaseDirectory, "fonts", "FredokaOne-Regular.ttf");
             if (File.Exists(fontPath))
-                ReplaceFont(fontPath, 14, FontGlyphRangeType.English);
+                ReplaceFont(fontPath, (int)Settings.MenuFontSize, FontGlyphRangeType.English);
+        }
+
+        private void ApplyMenuFontIfNeeded()
+        {
+            if (_appliedMenuFont == Settings.MenuFont &&
+                MathF.Abs(_appliedMenuFontSize - Settings.MenuFontSize) < 0.01f)
+            {
+                return;
+            }
+
+            _appliedMenuFont = Settings.MenuFont;
+            _appliedMenuFontSize = Settings.MenuFontSize;
+
+            if (Settings.MenuFont == MenuFontChoice.Fredoka)
+                TryLoadFredokaFont();
+        }
+
+        public int GetGameLoopSleepMs()
+        {
+            if (bhopEnabled)
+                return bhopSubtick ? 1 : 2;
+
+            return Settings.GameLoopSleepMs;
         }
 
         protected override void Render()
@@ -152,17 +185,48 @@ namespace External_Aimbot
             SyncOverlayToGameWindow();
             KeepOverlayOnTop();
 
-            UiTheme.ApplyCompact();
+            UiTheme.ApplyForSettings(Settings);
+            ApplyMenuFontIfNeeded();
 
+            OverlaySettingsPanel.DrawFab(Settings);
+
+            if (Settings.ShowMainMenu)
+                DrawMainMenuWindow();
+
+            OverlaySettingsPanel.DrawWindow(Settings);
+
+            bool drawFov = showFovCircle || utilityStore.IsOn("pr_show_fov_circle");
+            if (drawFov)
+                DrawFovCircle();
+
+            if (utilityStore.IsOn("pr_show_prediction") || (recoilPredictor && HasPredictionPoint))
+                DrawRecoilPrediction();
+
+            if (utilityStore.IsOn("pr_show_target_lines") || drawTargetLines)
+                DrawTargetLines();
+
+            DrawEsp();
+            DrawOverlayRadar();
+            DrawIntel();
+            UtilityHud.Draw(utilityStore, _utilityHudContext);
+        }
+
+        public void SetUtilityHudContext(UtilityHudContext ctx) => _utilityHudContext = ctx;
+
+        private void DrawMainMenuWindow()
+        {
             var io = ImGui.GetIO();
-            float menuW = Math.Clamp(io.DisplaySize.X * 0.24f, 260f, 340f);
-            float menuH = Math.Clamp(io.DisplaySize.Y * 0.32f, 200f, 280f);
+            float menuW = Math.Clamp(io.DisplaySize.X * Settings.MenuWidthFraction, 240f, 380f);
+            float menuH = Math.Clamp(io.DisplaySize.Y * Settings.MenuHeightFraction, 180f, 340f);
+
+            OverlayLayout.AnchorWindow(Settings.MenuCorner, new Vector2(8f, 8f));
             ImGui.SetNextWindowSize(new Vector2(menuW, menuH), ImGuiCond.Always);
-            ImGui.SetNextWindowSizeConstraints(new Vector2(240f, 180f), new Vector2(360f, 320f));
+            ImGui.SetNextWindowSizeConstraints(new Vector2(240f, 180f), new Vector2(400f, 360f));
 
             ImGui.Begin("CS2 Combined", ImGuiWindowFlags.NoCollapse);
             UpdateOverlayInputBlock();
 
+            ImGui.SetWindowFontScale(Settings.MenuFontScale);
             UiTheme.DrawMenuHeader();
 
             if (ImGui.BeginTabBar("MainTabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton))
@@ -213,28 +277,10 @@ namespace External_Aimbot
             }
 
             DrawDisplayModeHelp();
-
+            ImGui.SetWindowFontScale(1f);
             UpdateOverlayInputBlock();
-
             ImGui.End();
-
-            bool drawFov = showFovCircle || utilityStore.IsOn("pr_show_fov_circle");
-            if (drawFov)
-                DrawFovCircle();
-
-            if (utilityStore.IsOn("pr_show_prediction") || (recoilPredictor && HasPredictionPoint))
-                DrawRecoilPrediction();
-
-            if (utilityStore.IsOn("pr_show_target_lines") || drawTargetLines)
-                DrawTargetLines();
-
-            DrawEsp();
-            DrawOverlayRadar();
-            DrawIntel();
-            UtilityHud.Draw(utilityStore, _utilityHudContext);
         }
-
-        public void SetUtilityHudContext(UtilityHudContext ctx) => _utilityHudContext = ctx;
 
         private void DrawToolsTab()
         {

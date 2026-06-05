@@ -6,9 +6,12 @@ namespace External_Aimbot
     internal static class UiTheme
     {
         private static bool _applied;
+        private static AccentPreset _lastAccent = (AccentPreset)(-1);
+        private static MenuDensity _lastDensity = (MenuDensity)(-1);
+        private static MenuDensity _currentDensity = MenuDensity.Compact;
 
-        public static readonly Vector4 Accent = new(0.18f, 0.83f, 0.72f, 1f);
-        public static readonly Vector4 AccentSoft = new(0.18f, 0.83f, 0.72f, 0.18f);
+        public static Vector4 Accent { get; private set; } = new(0.18f, 0.83f, 0.72f, 1f);
+        public static Vector4 AccentSoft { get; private set; } = new(0.18f, 0.83f, 0.72f, 0.18f);
         public static readonly Vector4 TextPrimary = new(0.93f, 0.95f, 0.97f, 1f);
         public static readonly Vector4 TextMuted = new(0.55f, 0.60f, 0.67f, 1f);
         public static readonly Vector4 TextSuccess = new(0.35f, 0.95f, 0.55f, 1f);
@@ -17,6 +20,35 @@ namespace External_Aimbot
         public static readonly Vector4 TextInfo = new(0.45f, 0.78f, 1f, 1f);
 
         public static uint AccentU32 => ImGui.ColorConvertFloat4ToU32(Accent);
+
+        public static void ApplyForSettings(OverlaySettings settings)
+        {
+            if (_applied && _lastAccent == settings.Accent && _lastDensity == settings.MenuDensity)
+                return;
+
+            SetAccentPreset(settings.Accent);
+            _applied = false;
+            _lastAccent = settings.Accent;
+            _lastDensity = settings.MenuDensity;
+            _currentDensity = settings.MenuDensity;
+
+            if (settings.MenuDensity == MenuDensity.Compact)
+                ApplyCompact();
+            else
+                Apply();
+        }
+
+        private static void SetAccentPreset(AccentPreset preset)
+        {
+            Accent = preset switch
+            {
+                AccentPreset.Blue => new Vector4(0.35f, 0.62f, 1f, 1f),
+                AccentPreset.Violet => new Vector4(0.62f, 0.45f, 0.98f, 1f),
+                _ => new Vector4(0.18f, 0.83f, 0.72f, 1f),
+            };
+
+            AccentSoft = Accent with { W = 0.18f };
+        }
 
         public static void Apply()
         {
@@ -69,28 +101,28 @@ namespace External_Aimbot
             style.Colors[(int)ImGuiCol.ScrollbarGrabActive] = Accent;
             style.Colors[(int)ImGuiCol.CheckMark] = Accent;
             style.Colors[(int)ImGuiCol.SliderGrab] = Accent;
-            style.Colors[(int)ImGuiCol.SliderGrabActive] = new Vector4(0.22f, 0.92f, 0.80f, 1f);
+            style.Colors[(int)ImGuiCol.SliderGrabActive] = Accent with { X = MathF.Min(Accent.X + 0.04f, 1f), Y = MathF.Min(Accent.Y + 0.09f, 1f), Z = MathF.Min(Accent.Z + 0.08f, 1f) };
             style.Colors[(int)ImGuiCol.Button] = new Vector4(0.15f, 0.18f, 0.22f, 1f);
             style.Colors[(int)ImGuiCol.ButtonHovered] = new Vector4(0.20f, 0.24f, 0.30f, 1f);
-            style.Colors[(int)ImGuiCol.ButtonActive] = new Vector4(0.14f, 0.40f, 0.36f, 1f);
+            style.Colors[(int)ImGuiCol.ButtonActive] = new Vector4(Accent.X * 0.55f, Accent.Y * 0.55f, Accent.Z * 0.55f, 1f);
             style.Colors[(int)ImGuiCol.Header] = AccentSoft;
-            style.Colors[(int)ImGuiCol.HeaderHovered] = new Vector4(0.18f, 0.83f, 0.72f, 0.28f);
-            style.Colors[(int)ImGuiCol.HeaderActive] = new Vector4(0.18f, 0.83f, 0.72f, 0.40f);
+            style.Colors[(int)ImGuiCol.HeaderHovered] = Accent with { W = 0.28f };
+            style.Colors[(int)ImGuiCol.HeaderActive] = Accent with { W = 0.40f };
             style.Colors[(int)ImGuiCol.Separator] = new Vector4(0.20f, 0.24f, 0.30f, 0.65f);
             style.Colors[(int)ImGuiCol.SeparatorHovered] = Accent;
             style.Colors[(int)ImGuiCol.SeparatorActive] = Accent;
-            style.Colors[(int)ImGuiCol.ResizeGrip] = new Vector4(0.18f, 0.83f, 0.72f, 0.20f);
-            style.Colors[(int)ImGuiCol.ResizeGripHovered] = new Vector4(0.18f, 0.83f, 0.72f, 0.45f);
+            style.Colors[(int)ImGuiCol.ResizeGrip] = Accent with { W = 0.20f };
+            style.Colors[(int)ImGuiCol.ResizeGripHovered] = Accent with { W = 0.45f };
             style.Colors[(int)ImGuiCol.ResizeGripActive] = Accent;
             style.Colors[(int)ImGuiCol.Tab] = new Vector4(0.11f, 0.13f, 0.17f, 1f);
-            style.Colors[(int)ImGuiCol.TabHovered] = new Vector4(0.18f, 0.83f, 0.72f, 0.25f);
-            style.Colors[(int)ImGuiCol.TabSelected] = new Vector4(0.14f, 0.36f, 0.32f, 1f);
+            style.Colors[(int)ImGuiCol.TabHovered] = Accent with { W = 0.25f };
+            style.Colors[(int)ImGuiCol.TabSelected] = new Vector4(Accent.X * 0.45f, Accent.Y * 0.45f, Accent.Z * 0.45f, 1f);
             style.Colors[(int)ImGuiCol.TabSelectedOverline] = Accent;
             style.Colors[(int)ImGuiCol.PlotLines] = Accent;
             style.Colors[(int)ImGuiCol.PlotLinesHovered] = TextSuccess;
             style.Colors[(int)ImGuiCol.PlotHistogram] = Accent;
             style.Colors[(int)ImGuiCol.PlotHistogramHovered] = TextSuccess;
-            style.Colors[(int)ImGuiCol.TextSelectedBg] = new Vector4(0.18f, 0.83f, 0.72f, 0.35f);
+            style.Colors[(int)ImGuiCol.TextSelectedBg] = Accent with { W = 0.35f };
         }
 
         public static void ApplyCompact()
@@ -124,7 +156,7 @@ namespace External_Aimbot
             ImGui.SetWindowFontScale(1f);
             ImGui.PopStyleColor();
 
-            ImGui.TextColored(TextMuted, $"Compact menu · {UtilityCatalog.All.Count} tools");
+            ImGui.TextColored(TextMuted, $"{(_currentDensity == MenuDensity.Comfortable ? "Comfort" : "Compact")} menu · {UtilityCatalog.All.Count} tools");
         }
 
         public static void Section(string title)
@@ -178,7 +210,7 @@ namespace External_Aimbot
                 ImGui.Checkbox($"Show teammates{id}", ref showTeam);
         }
 
-        private static bool RadioPill(string label, bool selected)
+        public static bool RadioPill(string label, bool selected)
         {
             if (selected)
                 ImGui.PushStyleColor(ImGuiCol.Button, AccentSoft);

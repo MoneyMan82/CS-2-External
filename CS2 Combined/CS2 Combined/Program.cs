@@ -425,10 +425,7 @@ try
             SessionStartTicks = renderer.utilitySessionStartTicks,
         });
 
-        Thread.Sleep(
-            renderer.bhopEnabled
-                ? (renderer.bhopSubtick ? 1 : 2)
-                : 5);
+        Thread.Sleep(renderer.GetGameLoopSleepMs());
     }
 }
 catch (Exception ex)
